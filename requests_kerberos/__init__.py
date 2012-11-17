@@ -1,3 +1,3 @@
-from requests_kerberos import HTTPKerberosAuth
+from .kerberos import HTTPKerberosAuth
 
 __all__ = [HTTPKerberosAuth]
