@@ -1,6 +1,6 @@
 from requests.auth import AuthBase
 from requests.compat import urlparse
-import kerberos as k
+import kerberos
 import re
 import logging
 
@@ -25,7 +25,7 @@ class HTTPKerberosAuth(AuthBase):
     """Attaches HTTP GSSAPI/Kerberos Authentication to the given Request
     object."""
     def __init__(self, require_mutual_auth=True):
-        if k is None:
+        if kerberos is None:
             raise Exception("Kerberos libraries unavailable")
         self.context = None
         self.require_mutual_auth = require_mutual_auth
@@ -37,17 +37,18 @@ class HTTPKerberosAuth(AuthBase):
         tail, _, head = host.rpartition(':')
         domain = tail if tail else head
 
-        result, self.context = k.authGSSClientInit("HTTP@%s" % domain)
+        result, self.context = kerberos.authGSSClientInit("HTTP@%s" % domain)
 
         if result < 1:
             raise Exception("authGSSClientInit failed")
 
-        result = k.authGSSClientStep(self.context, _negotiate_value(response))
+        result = kerberos.authGSSClientStep(self.context,
+                                            _negotiate_value(response))
 
         if result < 0:
             raise Exception("authGSSClientStep failed")
 
-        gss_response = k.authGSSClientResponse(self.context)
+        gss_response = kerberos.authGSSClientResponse(self.context)
 
         return "Negotiate {0}".format(gss_response)
 
@@ -101,8 +102,9 @@ class HTTPKerberosAuth(AuthBase):
         """Uses GSSAPI to authenticate the server"""
 
         log.debug("authenticate_server(): Authenticate header: %s".format(
-                _negotiate_value(response)))
-        result = k.authGSSClientStep(self.context, _negotiate_value(response))
+                _negotiate_value(response)))  # nopep8
+        result = kerberos.authGSSClientStep(self.context,
+                                            _negotiate_value(response))
         if  result < 1:
             raise Exception("authGSSClientStep failed")
         _r = response.request.response
