@@ -9,14 +9,21 @@ log = logging.getLogger(__name__)
 
 def _negotiate_value(response):
     """Extracts the gssapi authentication token from the appropriate header"""
+    if hasattr(_negotiate_value, 'regex'):
+        regex = _negotiate_value.regex
+    else:
+        # There's no need to re-compile this EVERY time it is called. Compile
+        # ile it once and you won't have the performance hit of the
+        # compilation.
+        regex = re.compile('(?:.*,)*\s*Negotiate\s*([^,]*),?', re.I)
+        _negotiate_value.regex = regex
 
     authreq = response.headers.get('www-authenticate', None)
 
     if authreq:
-        rx = re.compile('(?:.*,)*\s*Negotiate\s*([^,]*),?', re.I)
-        mo = rx.search(authreq)
-        if mo:
-            return mo.group(1)
+        match_obj = regex.search(authreq)
+        if match_obj:
+            return match_obj.group(1)
 
     return None
 
@@ -25,19 +32,17 @@ class HTTPKerberosAuth(AuthBase):
     """Attaches HTTP GSSAPI/Kerberos Authentication to the given Request
     object."""
     def __init__(self, require_mutual_auth=True):
-        if kerberos is None:
-            raise Exception("Kerberos libraries unavailable")
         self.context = None
         self.require_mutual_auth = require_mutual_auth
 
     def generate_request_header(self, response):
         """Generates the gssapi authentication token with kerberos"""
-
         host = urlparse(response.url).netloc
         tail, _, head = host.rpartition(':')
         domain = tail if tail else head
 
-        result, self.context = kerberos.authGSSClientInit("HTTP@%s" % domain)
+        result, self.context = kerberos.authGSSClientInit("HTTP@{0}".format(
+            domain))
 
         if result < 1:
             raise Exception("authGSSClientInit failed")
@@ -62,7 +67,7 @@ class HTTPKerberosAuth(AuthBase):
         response.request.send(anyway=True)
         _r = response.request.response
         _r.history.append(response)
-        log.debug("authenticate_user(): returning %s" % _r)
+        log.debug("authenticate_user(): returning {0}".format(_r))
         return _r
 
     def handle_401(self, response):
@@ -71,7 +76,7 @@ class HTTPKerberosAuth(AuthBase):
         log.debug("handle_401(): Handling: 401")
         if _negotiate_value(response) is not None:
             _r = self.authenticate_user(response)
-            log.debug("handle_401(): returning %s" % _r)
+            log.debug("handle_401(): returning {0}".format(_r))
             return _r
         else:
             log.debug("handle_401(): Kerberos is not supported")
@@ -89,7 +94,7 @@ class HTTPKerberosAuth(AuthBase):
             if _negotiate_value(response) is not None:
                 log.debug("handle_other(): Authenticating the server")
                 _r = self.authenticate_server(response)
-                log.debug("handle_other(): returning %s" % _r)
+                log.debug("handle_other(): returning {0}".format(_r))
                 return _r
             else:
                 log.error("handle_other(): Mutual authentication failed")
@@ -101,14 +106,14 @@ class HTTPKerberosAuth(AuthBase):
     def authenticate_server(self, response):
         """Uses GSSAPI to authenticate the server"""
 
-        log.debug("authenticate_server(): Authenticate header: %s".format(
+        log.debug("authenticate_server(): Authenticate header: {0}".format(
                 _negotiate_value(response)))  # nopep8
         result = kerberos.authGSSClientStep(self.context,
                                             _negotiate_value(response))
         if  result < 1:
             raise Exception("authGSSClientStep failed")
         _r = response.request.response
-        log.debug("authenticate_server(): returning %s" % _r)
+        log.debug("authenticate_server(): returning {0}".format(_r))
         return _r
 
     def handle_response(self, response):
@@ -116,14 +121,14 @@ class HTTPKerberosAuth(AuthBase):
 
         if response.status_code == 401:
             _r = self.handle_401(response)
-            log.debug("handle_response returning %s" % _r)
+            log.debug("handle_response returning {0}".format(_r))
             return _r
         else:
             _r = self.handle_other(response)
-            log.debug("handle_response returning %s" % _r)
+            log.debug("handle_response returning {0}".format(_r))
             return _r
 
-        log.debug("handle_response returning %s" % response)
+        log.debug("handle_response returning {0}".format(response))
         return response
 
     def deregister(self, response):
