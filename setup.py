@@ -3,10 +3,10 @@
 import os
 from setuptools import setup
 
-version_file = 'requests_kerberos/__init__.py'
-exec(compile(open(version_file).read(), version_file, 'exec'))
+import requests_kerberos
 
-requires = ['kerberos', 'requests']
+with open('requirements.txt') as requirements:
+    requires = [line.strip() for line in requirements if line.strip()]
 
 path = os.path.dirname(__file__)
 desc_fd = os.path.join(path, 'README.rst')
@@ -19,16 +19,16 @@ if os.path.isfile(desc_fd):
     long_desc = open(desc_fd).read()
 
 if os.path.isfile(hist_fd):
-    long_desc = '\n\n'.join(long_desc, open(hist_fd).read())
+    long_desc = '\n\n'.join([long_desc, open(hist_fd).read()])
 
 setup(
-      name='requests-kerberos',
-      description=short_desc,
-      long_description=long_desc,
-      url='https://github.com/requests/requests-kerberos',
-      packages=['requests_kerberos'],
-      package_data={'': ['LICENSE', 'AUTHORS']},
-      include_package_data=True,
-      version=__version__,  # NOQA
-      install_requires=requires,
-     )
+    name='requests-kerberos',
+    description=short_desc,
+    long_description=long_desc,
+    url='https://github.com/requests/requests-kerberos',
+    packages=['requests_kerberos'],
+    package_data={'': ['LICENSE', 'AUTHORS']},
+    include_package_data=True,
+    version=requests_kerberos.__version__,  # NOQA
+    install_requires=requires,
+)
