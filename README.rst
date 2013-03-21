@@ -15,6 +15,12 @@ authentication. Basic GET usage:
 
 The entire ``requests.api`` should be supported.
 
+Authentication Failures
+-----------------------
+
+Client authentication failures will be communicated to the caller by returning
+the 401 response.
+
 Mutual Authentication
 ---------------------
 
@@ -55,3 +61,16 @@ authentication, you can do that as well:
     >>> kerberos_auth = HTTPKerberosAuth(mutual_authentication=DISABLED)
     >>> r = requests.get("http://example.org", auth=kerberos_auth)
     ...
+
+Logging
+-------
+
+This library makes extensive use of python's logging facilities. 
+
+Log messages are logged to the ``requests_kerberos`` and
+``requests_kerberos.kerberos_`` named loggers.
+
+If you are having difficulty we suggest you configure logging. Issues with the
+underlying kerberos libraries will be made apparent. Additionally, copious debug
+information is made available which may assist in troubleshooting if you
+increase your log level all the way up to debug.
