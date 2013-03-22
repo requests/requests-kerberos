@@ -6,10 +6,6 @@
 from mock import Mock, patch
 import requests
 import requests_kerberos
-# try:
-    # import unittest2 as unittest
-# except LoadError:
-    # import unittest
 import unittest
 
 # kerberos.authClientInit() is called with the service name (HTTP@FQDN) and
