@@ -5,6 +5,7 @@
 
 from mock import Mock, patch
 import requests
+import kerberos
 import requests_kerberos
 import unittest
 
@@ -20,6 +21,7 @@ clientInit_error = Mock(return_value=(-1, "CTX"))
 clientStep_complete = Mock(return_value=1)
 clientStep_continue = Mock(return_value=0)
 clientStep_error = Mock(return_value=-1)
+clientStep_exception = Mock(side_effect=kerberos.GSSError)
 
 # kerberos.authGSSCLientResponse() is called with the kerberos context which
 # was initially returned by authGSSClientInit and had been mutated by a call by
@@ -42,6 +44,7 @@ class KerberosTestCase(unittest.TestCase):
         clientStep_complete.reset_mock()
         clientStep_continue.reset_mock()
         clientStep_error.reset_mock()
+        clientStep_exception.reset_mock()
         clientResponse.reset_mock()
 
     def tearDown(self):
@@ -260,6 +263,25 @@ class KerberosTestCase(unittest.TestCase):
                               response_ok)
 
             self.assertFalse(clientStep_error.called)
+
+    def test_handle_response_200_mutual_auth_required_failure_2(self):
+        with patch('kerberos.authGSSClientStep', clientStep_exception):
+
+            response_ok = requests.Response()
+            response_ok.url = "http://www.example.org/"
+            response_ok.status_code = 200
+            response_ok.headers = {'www-authenticate': 'negotiate servertoken',
+                                   'authorization': 'Negotiate GSSRESPONSE'
+            }
+
+            auth = requests_kerberos.HTTPKerberosAuth()
+            auth.context = {"www.example.org": "CTX"}
+
+            self.assertRaises(requests_kerberos.MutualAuthenticationError,
+                              auth.handle_response,
+                              response_ok)
+
+            clientStep_exception.assert_called_with("CTX", "servertoken")
 
     def test_handle_response_200_mutual_auth_optional_hard_failure(self):
         with patch('kerberos.authGSSClientStep', clientStep_error):
