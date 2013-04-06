@@ -5,6 +5,7 @@
 
 from mock import Mock, patch
 import requests
+import kerberos
 import requests_kerberos
 import unittest
 
@@ -20,6 +21,7 @@ clientInit_error = Mock(return_value=(-1, "CTX"))
 clientStep_complete = Mock(return_value=1)
 clientStep_continue = Mock(return_value=0)
 clientStep_error = Mock(return_value=-1)
+clientStep_exception = Mock(side_effect=kerberos.GSSError)
 
 # kerberos.authGSSCLientResponse() is called with the kerberos context which
 # was initially returned by authGSSClientInit and had been mutated by a call by
@@ -37,7 +39,13 @@ class KerberosTestCase(unittest.TestCase):
 
     def setUp(self):
         """Setup."""
-        pass
+        clientInit_complete.reset_mock()
+        clientInit_error.reset_mock()
+        clientStep_complete.reset_mock()
+        clientStep_continue.reset_mock()
+        clientStep_error.reset_mock()
+        clientStep_exception.reset_mock()
+        clientResponse.reset_mock()
 
     def tearDown(self):
         """Teardown."""
@@ -89,8 +97,8 @@ class KerberosTestCase(unittest.TestCase):
                 None
             )
             clientInit_error.assert_called_with("HTTP@www.example.org")
-            clientStep_continue.assert_not_called()
-            clientResponse.assert_not_called()
+            self.assertFalse(clientStep_continue.called)
+            self.assertFalse(clientResponse.called)
 
     def test_generate_request_header_step_error(self):
         with patch.multiple('kerberos',
@@ -107,7 +115,7 @@ class KerberosTestCase(unittest.TestCase):
             )
             clientInit_complete.assert_called_with("HTTP@www.example.org")
             clientStep_error.assert_called_with("CTX", "token")
-            clientResponse.assert_not_called()
+            self.assertFalse(clientResponse.called)
 
     def test_authenticate_user(self):
         with patch.multiple('kerberos',
@@ -254,7 +262,26 @@ class KerberosTestCase(unittest.TestCase):
                               auth.handle_response,
                               response_ok)
 
-            clientStep_error.assert_not_called()
+            self.assertFalse(clientStep_error.called)
+
+    def test_handle_response_200_mutual_auth_required_failure_2(self):
+        with patch('kerberos.authGSSClientStep', clientStep_exception):
+
+            response_ok = requests.Response()
+            response_ok.url = "http://www.example.org/"
+            response_ok.status_code = 200
+            response_ok.headers = {'www-authenticate': 'negotiate servertoken',
+                                   'authorization': 'Negotiate GSSRESPONSE'
+            }
+
+            auth = requests_kerberos.HTTPKerberosAuth()
+            auth.context = {"www.example.org": "CTX"}
+
+            self.assertRaises(requests_kerberos.MutualAuthenticationError,
+                              auth.handle_response,
+                              response_ok)
+
+            clientStep_exception.assert_called_with("CTX", "servertoken")
 
     def test_handle_response_200_mutual_auth_optional_hard_failure(self):
         with patch('kerberos.authGSSClientStep', clientStep_error):
@@ -291,7 +318,8 @@ class KerberosTestCase(unittest.TestCase):
 
             self.assertEqual(r, response_ok)
 
-            clientStep_error.assert_not_called()
+            self.assertFalse(clientStep_error.called)
+
     def test_handle_response_500_mutual_auth_required_failure(self):
         with patch('kerberos.authGSSClientStep', clientStep_error):
 
@@ -322,7 +350,7 @@ class KerberosTestCase(unittest.TestCase):
             self.assertEqual(r.content, b'')
             self.assertNotEqual(r.cookies, response_500.cookies)
 
-            clientStep_error.assert_not_called()
+            self.assertFalse(clientStep_error.called)
 
     def test_handle_response_500_mutual_auth_optional_failure(self):
         with patch('kerberos.authGSSClientStep', clientStep_error):
@@ -345,7 +373,7 @@ class KerberosTestCase(unittest.TestCase):
 
             self.assertEqual(r, response_500)
 
-            clientStep_error.assert_not_called()
+            self.assertFalse(clientStep_error.called)
 
 
     def test_handle_response_401(self):
