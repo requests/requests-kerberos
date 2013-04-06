@@ -115,7 +115,7 @@ class KerberosTestCase(unittest.TestCase):
             )
             clientInit_complete.assert_called_with("HTTP@www.example.org")
             clientStep_error.assert_called_with("CTX", "token")
-            self.assertTrue(not clientResponse.called)
+            self.assertFalse(clientResponse.called)
 
     def test_authenticate_user(self):
         with patch.multiple('kerberos',
