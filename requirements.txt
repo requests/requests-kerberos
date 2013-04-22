@@ -1,2 +1,2 @@
-requests==1.1.0
+requests
 kerberos==1.1.1
