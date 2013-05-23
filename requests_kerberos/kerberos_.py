@@ -92,7 +92,7 @@ class HTTPKerberosAuth(AuthBase):
         If any GSSAPI step fails, return None.
 
         """
-        host = urlparse(response.url).netloc
+        host = urlparse(response.url).hostname
 
         try:
             result, self.context[host] = kerberos.authGSSClientInit(
@@ -220,7 +220,7 @@ class HTTPKerberosAuth(AuthBase):
         log.debug("authenticate_server(): Authenticate header: {0}".format(
             _negotiate_value(response)))
 
-        host = urlparse(response.url).netloc
+        host = urlparse(response.url).hostname
 
         try:
             result = kerberos.authGSSClientStep(self.context[host],
