@@ -13,7 +13,6 @@ authentication. Basic GET usage:
 The entire `requests.api` should be supported.
 """
 import logging
-import sys
 
 from .kerberos_ import HTTPKerberosAuth, REQUIRED, OPTIONAL, DISABLED
 from .exceptions import MutualAuthenticationError
@@ -21,5 +20,6 @@ from .compat import NullHandler
 
 logging.getLogger(__name__).addHandler(NullHandler())
 
-__all__ = [HTTPKerberosAuth, MutualAuthenticationError]
-__version__ = '0.2'
+__all__ = [HTTPKerberosAuth, MutualAuthenticationError, REQUIRED, OPTIONAL,
+           DISABLED]
+__version__ = '0.3'
