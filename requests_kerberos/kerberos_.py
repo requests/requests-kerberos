@@ -84,9 +84,12 @@ def _negotiate_value(response):
 class HTTPKerberosAuth(AuthBase):
     """Attaches HTTP GSSAPI/Kerberos Authentication to the given Request
     object."""
-    def __init__(self, mutual_authentication=REQUIRED, service="HTTP"):
+    def __init__(
+            self, mutual_authentication=REQUIRED,
+            service="HTTP", delegate=False):
         self.context = {}
         self.mutual_authentication = mutual_authentication
+        self.delegate = delegate
         self.pos = None
         self.service = service
 
@@ -99,11 +102,17 @@ class HTTPKerberosAuth(AuthBase):
         """
         host = urlparse(response.url).hostname
 
+        # Flags used by kerberos module.
+        gssflags = kerberos.GSS_C_MUTUAL_FLAG | kerberos.GSS_C_SEQUENCE_FLAG
+        if self.delegate:
+            gssflags |= kerberos.GSS_C_DELEG_FLAG
+
         try:
             result, self.context[host] = kerberos.authGSSClientInit(
-                "{0}@{1}".format(self.service, host))
+                "{0}@{1}".format(self.service, host), gssflags=gssflags)
         except kerberos.GSSError:
-            log.exception("generate_request_header(): authGSSClientInit() failed:")
+            log.error("generate_request_header(): authGSSClientInit() failed:")
+            log.exception(e)
             return None
 
         if result < 1:
@@ -115,7 +124,8 @@ class HTTPKerberosAuth(AuthBase):
             result = kerberos.authGSSClientStep(self.context[host],
                                                 _negotiate_value(response))
         except kerberos.GSSError:
-            log.exception("generate_request_header(): authGSSClientStep() failed:")
+            log.exception(
+                "generate_request_header(): authGSSClientStep() failed:")
             return None
 
         if result < 0:
@@ -126,8 +136,8 @@ class HTTPKerberosAuth(AuthBase):
         try:
             gss_response = kerberos.authGSSClientResponse(self.context[host])
         except kerberos.GSSError:
-            log.exception("generate_request_header(): authGSSClientResponse() "
-                      "failed:")
+            log.exception(
+                "generate_request_header(): authGSSClientResponse() failed:")
             return None
 
         return "Negotiate {0}".format(gss_response)
