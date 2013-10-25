@@ -32,12 +32,12 @@ if os.path.isfile(hist_fd):
 # and as long as __version__ is defined as a constant so that we
 # don't have to evaluate it to get the value, we can do some dubious
 # groping arond the AST and get the version from that
-parsed = compiler.parseFile('requests_kerberos/__init__.py')    
+parsed = compiler.parseFile('requests_kerberos/__init__.py')
 for n in parsed.getChildNodes()[0]:
-    if 'nodes' in dir(n): 
+    if 'nodes' in dir(n):
         if n.nodes[0].name == '__version__':
-            my_version = n.expr.value        
-    
+            my_version = n.expr.value
+
 setup(
     name='requests-kerberos',
     description=short_desc,
@@ -46,6 +46,6 @@ setup(
     packages=['requests_kerberos'],
     package_data={'': ['LICENSE', 'AUTHORS']},
     include_package_data=True,
-    version = my_version,
+    version=my_version,
     install_requires=requires,
 )
