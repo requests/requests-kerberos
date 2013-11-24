@@ -84,6 +84,7 @@ class HTTPKerberosAuth(AuthBase):
     def __init__(self, mutual_authentication=REQUIRED):
         self.context = {}
         self.mutual_authentication = mutual_authentication
+        self.pos = None
 
     def generate_request_header(self, response):
         """
@@ -241,6 +242,11 @@ class HTTPKerberosAuth(AuthBase):
     def handle_response(self, response, **kwargs):
         """Takes the given response and tries kerberos-auth, as needed."""
 
+        if self.pos is not None:
+            # Rewind the file position indicator of the body to where
+            # it was to resend the request.
+            response.request.body.seek(self.pos)
+
         if response.status_code == 401:
             _r = self.handle_401(response, **kwargs)
             log.debug("handle_response(): returning {0}".format(_r))
@@ -256,4 +262,8 @@ class HTTPKerberosAuth(AuthBase):
 
     def __call__(self, request):
         request.register_hook('response', self.handle_response)
+        try:
+            self.pos = request.body.tell()
+        except AttributeError:
+            pass
         return request
