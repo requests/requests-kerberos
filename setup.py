@@ -48,4 +48,6 @@ setup(
     include_package_data=True,
     version = my_version,
     install_requires=requires,
+    test_suite='test_requests_kerberos',
+    tests_require=['mock'],
 )
