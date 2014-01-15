@@ -414,5 +414,17 @@ class KerberosTestCase(unittest.TestCase):
             clientStep_continue.assert_called_with("CTX", "token")
             clientResponse.assert_called_with("CTX")
 
+    def test_generate_request_header_custom_service(self):
+        with patch.multiple('kerberos',
+                            authGSSClientInit=clientInit_error,
+                            authGSSClientResponse=clientResponse,
+                            authGSSClientStep=clientStep_continue):
+            response = requests.Response()
+            response.url = "http://www.example.org/"
+            response.headers = {'www-authenticate': 'negotiate token'}
+            auth = requests_kerberos.HTTPKerberosAuth(service="barfoo")
+            auth.generate_request_header(response),
+            clientInit_error.assert_called_with("barfoo@www.example.org")
+
 if __name__ == '__main__':
     unittest.main()

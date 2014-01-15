@@ -81,10 +81,11 @@ def _negotiate_value(response):
 class HTTPKerberosAuth(AuthBase):
     """Attaches HTTP GSSAPI/Kerberos Authentication to the given Request
     object."""
-    def __init__(self, mutual_authentication=REQUIRED):
+    def __init__(self, mutual_authentication=REQUIRED, service="HTTP"):
         self.context = {}
         self.mutual_authentication = mutual_authentication
         self.pos = None
+        self.service = service
 
     def generate_request_header(self, response):
         """
@@ -97,7 +98,7 @@ class HTTPKerberosAuth(AuthBase):
 
         try:
             result, self.context[host] = kerberos.authGSSClientInit(
-                "HTTP@{0}".format(host))
+                "{0}@{1}".format(self.service, host))
         except kerberos.GSSError as e:
             log.error("generate_request_header(): authGSSClientInit() failed:")
             log.exception(e)
