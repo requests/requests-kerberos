@@ -79,7 +79,7 @@ class KerberosTestCase(unittest.TestCase):
                 auth.generate_request_header(response),
                 "Negotiate GSSRESPONSE"
             )
-            clientInit_complete.assert_called_with("HTTP@www.example.org")
+            clientInit_complete.assert_called_with("HTTP@www.example.org", gssflags=10)
             clientStep_continue.assert_called_with("CTX", "token")
             clientResponse.assert_called_with("CTX")
 
@@ -96,7 +96,7 @@ class KerberosTestCase(unittest.TestCase):
                 auth.generate_request_header(response),
                 None
             )
-            clientInit_error.assert_called_with("HTTP@www.example.org")
+            clientInit_error.assert_called_with("HTTP@www.example.org", gssflags=10)
             self.assertFalse(clientStep_continue.called)
             self.assertFalse(clientResponse.called)
 
@@ -113,7 +113,7 @@ class KerberosTestCase(unittest.TestCase):
                 auth.generate_request_header(response),
                 None
             )
-            clientInit_complete.assert_called_with("HTTP@www.example.org")
+            clientInit_complete.assert_called_with("HTTP@www.example.org", gssflags=10)
             clientStep_error.assert_called_with("CTX", "token")
             self.assertFalse(clientResponse.called)
 
@@ -151,7 +151,7 @@ class KerberosTestCase(unittest.TestCase):
             self.assertEqual(request.headers['Authorization'], 'Negotiate GSSRESPONSE')
             connection.send.assert_called_with(request)
             raw.release_conn.assert_called_with()
-            clientInit_complete.assert_called_with("HTTP@www.example.org")
+            clientInit_complete.assert_called_with("HTTP@www.example.org", gssflags=10)
             clientStep_continue.assert_called_with("CTX", "token")
             clientResponse.assert_called_with("CTX")
 
@@ -190,7 +190,7 @@ class KerberosTestCase(unittest.TestCase):
             self.assertEqual(request.headers['Authorization'], 'Negotiate GSSRESPONSE')
             connection.send.assert_called_with(request)
             raw.release_conn.assert_called_with()
-            clientInit_complete.assert_called_with("HTTP@www.example.org")
+            clientInit_complete.assert_called_with("HTTP@www.example.org", gssflags=10)
             clientStep_continue.assert_called_with("CTX", "token")
             clientResponse.assert_called_with("CTX")
 
@@ -415,7 +415,7 @@ class KerberosTestCase(unittest.TestCase):
             self.assertEqual(request.headers['Authorization'], 'Negotiate GSSRESPONSE')
             connection.send.assert_called_with(request)
             raw.release_conn.assert_called_with()
-            clientInit_complete.assert_called_with("HTTP@www.example.org")
+            clientInit_complete.assert_called_with("HTTP@www.example.org", gssflags=10)
             clientStep_continue.assert_called_with("CTX", "token")
             clientResponse.assert_called_with("CTX")
             
@@ -474,7 +474,7 @@ class KerberosTestCase(unittest.TestCase):
             response.headers = {'www-authenticate': 'negotiate token'}
             auth = requests_kerberos.HTTPKerberosAuth(service="barfoo")
             auth.generate_request_header(response),
-            clientInit_error.assert_called_with("barfoo@www.example.org")
+            clientInit_error.assert_called_with("barfoo@www.example.org", gssflags=10)
 
 if __name__ == '__main__':
     unittest.main()
