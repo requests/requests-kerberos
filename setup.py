@@ -43,6 +43,8 @@ setup(
     name='requests-kerberos',
     description=short_desc,
     long_description=long_desc,
+    author='Ian Cordasco, Cory Benfield, Michael Komitee',
+    author_email='graffatcolmingov@gmail.com',
     url='https://github.com/requests/requests-kerberos',
     packages=['requests_kerberos'],
     package_data={'': ['LICENSE', 'AUTHORS']},
