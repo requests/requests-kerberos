@@ -402,10 +402,14 @@ class KerberosTestCase(unittest.TestCase):
             response.connection = connection
             response._content = ""
             response.raw = raw
+
             auth = requests_kerberos.HTTPKerberosAuth()
+            auth.handle_other = Mock(return_value=response_ok)
+
             r = auth.handle_response(response)
 
             self.assertTrue(response in r.history)
+            auth.handle_other.assert_called_with(response_ok)
             self.assertEqual(r, response_ok)
             self.assertEqual(request.headers['Authorization'], 'Negotiate GSSRESPONSE')
             connection.send.assert_called_with(request)
