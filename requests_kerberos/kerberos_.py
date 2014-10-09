@@ -233,7 +233,7 @@ class HTTPKerberosAuth(AuthBase):
             return False
 
         if result < 1:
-            log.error("auhenticate_server(): authGSSClientStep() failed: "
+            log.error("authenticate_server(): authGSSClientStep() failed: "
                       "{0}".format(result))
             return False
 
