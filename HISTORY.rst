@@ -1,6 +1,19 @@
 History
 =======
 
+0.6: 2014-11-04
+---------------
+
+- Handle mutual authentication (see pull request 36_)
+
+  All users should upgrade immediately. This has been reported to
+  oss-security_ and we are awaiting a proper CVE identifier.
+
+- Distribute as a wheel.
+
+.. _36: https://github.com/requests/requests-kerberos/pull/36
+.. _oss-security: http://www.openwall.com/lists/oss-security/
+
 0.5: 2014-05-14
 ---------------
 
