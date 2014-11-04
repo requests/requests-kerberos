@@ -233,7 +233,7 @@ class HTTPKerberosAuth(AuthBase):
             return False
 
         if result < 1:
-            log.error("auhenticate_server(): authGSSClientStep() failed: "
+            log.error("authenticate_server(): authGSSClientStep() failed: "
                       "{0}".format(result))
             return False
 
@@ -251,7 +251,7 @@ class HTTPKerberosAuth(AuthBase):
         if response.status_code == 401:
             _r = self.handle_401(response, **kwargs)
             log.debug("handle_response(): returning {0}".format(_r))
-            return _r
+            return self.handle_response(_r, **kwargs)
         else:
             _r = self.handle_other(response)
             log.debug("handle_response(): returning {0}".format(_r))
