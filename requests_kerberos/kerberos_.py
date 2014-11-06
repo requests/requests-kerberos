@@ -99,9 +99,8 @@ class HTTPKerberosAuth(AuthBase):
         try:
             result, self.context[host] = kerberos.authGSSClientInit(
                 "{0}@{1}".format(self.service, host))
-        except kerberos.GSSError as e:
-            log.error("generate_request_header(): authGSSClientInit() failed:")
-            log.exception(e)
+        except kerberos.GSSError:
+            log.exception("generate_request_header(): authGSSClientInit() failed:")
             return None
 
         if result < 1:
@@ -112,9 +111,8 @@ class HTTPKerberosAuth(AuthBase):
         try:
             result = kerberos.authGSSClientStep(self.context[host],
                                                 _negotiate_value(response))
-        except kerberos.GSSError as e:
-            log.error("generate_request_header(): authGSSClientStep() failed:")
-            log.exception(e)
+        except kerberos.GSSError:
+            log.exception("generate_request_header(): authGSSClientStep() failed:")
             return None
 
         if result < 0:
@@ -124,10 +122,9 @@ class HTTPKerberosAuth(AuthBase):
 
         try:
             gss_response = kerberos.authGSSClientResponse(self.context[host])
-        except kerberos.GSSError as e:
-            log.error("generate_request_header(): authGSSClientResponse() "
+        except kerberos.GSSError:
+            log.exception("generate_request_header(): authGSSClientResponse() "
                       "failed:")
-            log.exception(e)
             return None
 
         return "Negotiate {0}".format(gss_response)
@@ -227,9 +224,8 @@ class HTTPKerberosAuth(AuthBase):
         try:
             result = kerberos.authGSSClientStep(self.context[host],
                                                 _negotiate_value(response))
-        except kerberos.GSSError as e:
-            log.error("authenticate_server(): authGSSClientStep() failed:")
-            log.exception(e)
+        except kerberos.GSSError:
+            log.exception("authenticate_server(): authGSSClientStep() failed:")
             return False
 
         if result < 1:
