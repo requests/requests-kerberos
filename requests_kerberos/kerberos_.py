@@ -262,5 +262,9 @@ class HTTPKerberosAuth(AuthBase):
         try:
             self.pos = request.body.tell()
         except AttributeError:
-            pass
+            # In the case of HTTPKerberosAuth being reused and the body
+            # of the previous request was a file-like object, pos has
+            # the file position of the previous body. Ensure it's set to
+            # None.
+            self.pos = None
         return request
