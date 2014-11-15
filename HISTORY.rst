@@ -1,6 +1,13 @@
 History
 =======
 
+0.6.1: 2014-11-14
+-----------------
+
+- Fix HTTPKerberosAuth not to treat non-file as a file
+
+- Prevent infinite recursion when GSSErrors occurs
+
 0.6: 2014-11-04
 ---------------
 
@@ -8,6 +15,8 @@ History
 
   All users should upgrade immediately. This has been reported to
   oss-security_ and we are awaiting a proper CVE identifier.
+
+  **Update**: We were issued CVE-2014-8650
 
 - Distribute as a wheel.
 
