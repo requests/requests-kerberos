@@ -34,7 +34,6 @@ clientResponse = Mock(return_value="GSSRESPONSE")
 # > -- sigmavirus24 in https://github.com/requests/requests-kerberos/issues/1
 
 
-
 class KerberosTestCase(unittest.TestCase):
 
     def setUp(self):
@@ -79,7 +78,11 @@ class KerberosTestCase(unittest.TestCase):
                 auth.generate_request_header(response),
                 "Negotiate GSSRESPONSE"
             )
-            clientInit_complete.assert_called_with("HTTP@www.example.org", gssflags=10)
+            clientInit_complete.assert_called_with(
+                "HTTP@www.example.org",
+                gssflags=(
+                    kerberos.GSS_C_MUTUAL_FLAG |
+                    kerberos.GSS_C_SEQUENCE_FLAG))
             clientStep_continue.assert_called_with("CTX", "token")
             clientResponse.assert_called_with("CTX")
 
@@ -96,7 +99,11 @@ class KerberosTestCase(unittest.TestCase):
                 auth.generate_request_header(response),
                 None
             )
-            clientInit_error.assert_called_with("HTTP@www.example.org", gssflags=10)
+            clientInit_error.assert_called_with(
+                "HTTP@www.example.org",
+                gssflags=(
+                    kerberos.GSS_C_MUTUAL_FLAG |
+                    kerberos.GSS_C_SEQUENCE_FLAG))
             self.assertFalse(clientStep_continue.called)
             self.assertFalse(clientResponse.called)
 
@@ -113,7 +120,11 @@ class KerberosTestCase(unittest.TestCase):
                 auth.generate_request_header(response),
                 None
             )
-            clientInit_complete.assert_called_with("HTTP@www.example.org", gssflags=10)
+            clientInit_complete.assert_called_with(
+                "HTTP@www.example.org",
+                gssflags=(
+                    kerberos.GSS_C_MUTUAL_FLAG |
+                    kerberos.GSS_C_SEQUENCE_FLAG))
             clientStep_error.assert_called_with("CTX", "token")
             self.assertFalse(clientResponse.called)
 
@@ -148,13 +159,18 @@ class KerberosTestCase(unittest.TestCase):
 
             self.assertTrue(response in r.history)
             self.assertEqual(r, response_ok)
-            self.assertEqual(request.headers['Authorization'], 'Negotiate GSSRESPONSE')
+            self.assertEqual(
+                request.headers['Authorization'],
+                'Negotiate GSSRESPONSE')
             connection.send.assert_called_with(request)
             raw.release_conn.assert_called_with()
-            clientInit_complete.assert_called_with("HTTP@www.example.org", gssflags=10)
+            clientInit_complete.assert_called_with(
+                "HTTP@www.example.org",
+                gssflags=(
+                    kerberos.GSS_C_MUTUAL_FLAG |
+                    kerberos.GSS_C_SEQUENCE_FLAG))
             clientStep_continue.assert_called_with("CTX", "token")
             clientResponse.assert_called_with("CTX")
-
 
     def test_handle_401(self):
         with patch.multiple('kerberos',
@@ -187,10 +203,16 @@ class KerberosTestCase(unittest.TestCase):
 
             self.assertTrue(response in r.history)
             self.assertEqual(r, response_ok)
-            self.assertEqual(request.headers['Authorization'], 'Negotiate GSSRESPONSE')
+            self.assertEqual(
+                request.headers['Authorization'],
+                'Negotiate GSSRESPONSE')
             connection.send.assert_called_with(request)
             raw.release_conn.assert_called_with()
-            clientInit_complete.assert_called_with("HTTP@www.example.org", gssflags=10)
+            clientInit_complete.assert_called_with(
+                "HTTP@www.example.org",
+                gssflags=(
+                    kerberos.GSS_C_MUTUAL_FLAG |
+                    kerberos.GSS_C_SEQUENCE_FLAG))
             clientStep_continue.assert_called_with("CTX", "token")
             clientResponse.assert_called_with("CTX")
 
@@ -200,9 +222,9 @@ class KerberosTestCase(unittest.TestCase):
             response_ok = requests.Response()
             response_ok.url = "http://www.example.org/"
             response_ok.status_code = 200
-            response_ok.headers = {'www-authenticate': 'negotiate servertoken',
-                                   'authorization': 'Negotiate GSSRESPONSE'
-            }
+            response_ok.headers = {
+                'www-authenticate': 'negotiate servertoken',
+                'authorization': 'Negotiate GSSRESPONSE'}
 
             auth = requests_kerberos.HTTPKerberosAuth()
             auth.context = {"www.example.org": "CTX"}
@@ -217,9 +239,9 @@ class KerberosTestCase(unittest.TestCase):
             response_ok = requests.Response()
             response_ok.url = "http://www.example.org/"
             response_ok.status_code = 200
-            response_ok.headers = {'www-authenticate': 'negotiate servertoken',
-                                   'authorization': 'Negotiate GSSRESPONSE'
-            }
+            response_ok.headers = {
+                'www-authenticate': 'negotiate servertoken',
+                'authorization': 'Negotiate GSSRESPONSE'}
 
             auth = requests_kerberos.HTTPKerberosAuth()
             auth.context = {"www.example.org": "CTX"}
@@ -235,9 +257,9 @@ class KerberosTestCase(unittest.TestCase):
             response_ok = requests.Response()
             response_ok.url = "http://www.example.org/"
             response_ok.status_code = 200
-            response_ok.headers = {'www-authenticate': 'negotiate servertoken',
-                                   'authorization': 'Negotiate GSSRESPONSE'
-            }
+            response_ok.headers = {
+                'www-authenticate': 'negotiate servertoken',
+                'authorization': 'Negotiate GSSRESPONSE'}
 
             auth = requests_kerberos.HTTPKerberosAuth()
             auth.context = {"www.example.org": "CTX"}
@@ -270,9 +292,9 @@ class KerberosTestCase(unittest.TestCase):
             response_ok = requests.Response()
             response_ok.url = "http://www.example.org/"
             response_ok.status_code = 200
-            response_ok.headers = {'www-authenticate': 'negotiate servertoken',
-                                   'authorization': 'Negotiate GSSRESPONSE'
-            }
+            response_ok.headers = {
+                'www-authenticate': 'negotiate servertoken',
+                'authorization': 'Negotiate GSSRESPONSE'}
 
             auth = requests_kerberos.HTTPKerberosAuth()
             auth.context = {"www.example.org": "CTX"}
@@ -289,20 +311,19 @@ class KerberosTestCase(unittest.TestCase):
             response_ok = requests.Response()
             response_ok.url = "http://www.example.org/"
             response_ok.status_code = 200
-            response_ok.headers = {'www-authenticate': 'negotiate servertoken',
-                                   'authorization': 'Negotiate GSSRESPONSE'
-            }
+            response_ok.headers = {
+                'www-authenticate': 'negotiate servertoken',
+                'authorization': 'Negotiate GSSRESPONSE'}
 
-            auth = requests_kerberos.HTTPKerberosAuth(requests_kerberos.OPTIONAL)
+            auth = requests_kerberos.HTTPKerberosAuth(
+                requests_kerberos.OPTIONAL)
             auth.context = {"www.example.org": "CTX"}
-
 
             self.assertRaises(requests_kerberos.MutualAuthenticationError,
                               auth.handle_response,
                               response_ok)
 
             clientStep_error.assert_called_with("CTX", "servertoken")
-
 
     def test_handle_response_200_mutual_auth_optional_soft_failure(self):
         with patch('kerberos.authGSSClientStep', clientStep_error):
@@ -311,7 +332,8 @@ class KerberosTestCase(unittest.TestCase):
             response_ok.url = "http://www.example.org/"
             response_ok.status_code = 200
 
-            auth = requests_kerberos.HTTPKerberosAuth(requests_kerberos.OPTIONAL)
+            auth = requests_kerberos.HTTPKerberosAuth(
+                requests_kerberos.OPTIONAL)
             auth.context = {"www.example.org": "CTX"}
 
             r = auth.handle_response(response_ok)
@@ -366,7 +388,8 @@ class KerberosTestCase(unittest.TestCase):
             response_500.raw = "RAW"
             response_500.cookies = "COOKIES"
 
-            auth = requests_kerberos.HTTPKerberosAuth(requests_kerberos.OPTIONAL)
+            auth = requests_kerberos.HTTPKerberosAuth(
+                requests_kerberos.OPTIONAL)
             auth.context = {"www.example.org": "CTX"}
 
             r = auth.handle_response(response_500)
@@ -374,7 +397,6 @@ class KerberosTestCase(unittest.TestCase):
             self.assertEqual(r, response_500)
 
             self.assertFalse(clientStep_error.called)
-
 
     def test_handle_response_401(self):
         # Get a 401 from server, authenticate, and get a 200 back.
@@ -412,10 +434,16 @@ class KerberosTestCase(unittest.TestCase):
             self.assertTrue(response in r.history)
             auth.handle_other.assert_called_once_with(response_ok)
             self.assertEqual(r, response_ok)
-            self.assertEqual(request.headers['Authorization'], 'Negotiate GSSRESPONSE')
+            self.assertEqual(
+                request.headers['Authorization'],
+                'Negotiate GSSRESPONSE')
             connection.send.assert_called_with(request)
             raw.release_conn.assert_called_with()
-            clientInit_complete.assert_called_with("HTTP@www.example.org", gssflags=10)
+            clientInit_complete.assert_called_with(
+                "HTTP@www.example.org",
+                gssflags=(
+                    kerberos.GSS_C_MUTUAL_FLAG |
+                    kerberos.GSS_C_SEQUENCE_FLAG))
             clientStep_continue.assert_called_with("CTX", "token")
             clientResponse.assert_called_with("CTX")
             
@@ -474,7 +502,11 @@ class KerberosTestCase(unittest.TestCase):
             response.headers = {'www-authenticate': 'negotiate token'}
             auth = requests_kerberos.HTTPKerberosAuth(service="barfoo")
             auth.generate_request_header(response),
-            clientInit_error.assert_called_with("barfoo@www.example.org", gssflags=10)
+            clientInit_error.assert_called_with(
+                "barfoo@www.example.org",
+                gssflags=(
+                    kerberos.GSS_C_MUTUAL_FLAG |
+                    kerberos.GSS_C_SEQUENCE_FLAG))
 
     def test_delegation(self):
         with patch.multiple('kerberos',
@@ -507,13 +539,19 @@ class KerberosTestCase(unittest.TestCase):
 
             self.assertTrue(response in r.history)
             self.assertEqual(r, response_ok)
-            self.assertEqual(request.headers['Authorization'], 'Negotiate GSSRESPONSE')
+            self.assertEqual(
+                request.headers['Authorization'],
+                'Negotiate GSSRESPONSE')
             connection.send.assert_called_with(request)
             raw.release_conn.assert_called_with()
-            clientInit_complete.assert_called_with("HTTP@www.example.org", gssflags=11)
+            clientInit_complete.assert_called_with(
+                "HTTP@www.example.org",
+                gssflags=(
+                    kerberos.GSS_C_MUTUAL_FLAG |
+                    kerberos.GSS_C_SEQUENCE_FLAG |
+                    kerberos.GSS_C_DELEG_FLAG))
             clientStep_continue.assert_called_with("CTX", "token")
             clientResponse.assert_called_with("CTX")
-
 
 
 if __name__ == '__main__':
