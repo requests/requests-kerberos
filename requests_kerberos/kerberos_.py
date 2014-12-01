@@ -46,6 +46,7 @@ class SanitizedResponse(Response):
         self.reason = response.reason
         self.url = response.url
         self.request = response.request
+        self.history = list(response.history)
         self.connection = response.connection
         self._content_consumed = True
 

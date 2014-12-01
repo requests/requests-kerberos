@@ -333,6 +333,7 @@ class KerberosTestCase(unittest.TestCase):
             response_500.encoding = "ENCODING"
             response_500.raw = "RAW"
             response_500.cookies = "COOKIES"
+            response_500.history = [requests.Response()]
 
             auth = requests_kerberos.HTTPKerberosAuth()
             auth.context = {"www.example.org": "CTX"}
@@ -349,6 +350,7 @@ class KerberosTestCase(unittest.TestCase):
             self.assertEqual(r.connection, response_500.connection)
             self.assertEqual(r.content, b'')
             self.assertNotEqual(r.cookies, response_500.cookies)
+            self.assertEqual(r.history, response_500.history)
 
             self.assertFalse(clientStep_error.called)
 
