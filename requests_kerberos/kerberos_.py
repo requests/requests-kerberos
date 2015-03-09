@@ -158,6 +158,10 @@ class HTTPKerberosAuth(AuthBase):
         log.debug("handle_401(): Handling: 401")
         if _negotiate_value(response) is not None:
             _r = self.authenticate_user(response, **kwargs)
+            if _r is response:
+                log.debug("handle_401(): fail to authenticate, something wrong "
+                          "with the client.")
+                _r.raise_for_status()
             log.debug("handle_401(): returning {0}".format(_r))
             return _r
         else:
