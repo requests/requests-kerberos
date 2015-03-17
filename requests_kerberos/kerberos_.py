@@ -249,7 +249,7 @@ class HTTPKerberosAuth(AuthBase):
         if response.status_code == 401:
             _r = self.handle_401(response, **kwargs)
             log.debug("handle_response(): returning {0}".format(_r))
-            return self.handle_mutual_auth(_r, **kwargs)
+            return self.handle_mutual_auth(_r)
         else:
             _r = self.handle_mutual_auth(response)
             log.debug("handle_response(): returning {0}".format(_r))
