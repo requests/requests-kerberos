@@ -405,10 +405,12 @@ class KerberosTestCase(unittest.TestCase):
             response.raw = raw
 
             auth = requests_kerberos.HTTPKerberosAuth()
+            auth.handle_other = Mock(return_value=response_ok)
 
             r = auth.handle_response(response)
 
             self.assertTrue(response in r.history)
+            auth.handle_other.assert_called_once_with(response_ok)
             self.assertEqual(r, response_ok)
             self.assertEqual(request.headers['Authorization'], 'Negotiate GSSRESPONSE')
             connection.send.assert_called_with(request)
@@ -424,16 +426,20 @@ class KerberosTestCase(unittest.TestCase):
                             authGSSClientInit=clientInit_complete,
                             authGSSClientResponse=clientResponse,
                             authGSSClientStep=clientStep_continue):
-                            
-            response_auth_reject = requests.Response()
-            response_auth_reject.url = "http://www.example.org/"
-            response_auth_reject.status_code = 401
 
             connection = Mock()
-            connection.send = Mock(return_value=response_auth_reject)
+
+            def connection_send(self, *args, **kwargs):
+                reject = requests.Response()
+                reject.url = "http://www.example.org/"
+                reject.status_code = 401
+                reject.connection = connection
+                return reject
+
+            connection.send.side_effect = connection_send
 
             raw = Mock()
-            raw.release_conn = Mock(return_value=None)
+            raw.release_conn.return_value = None
 
             request = requests.Request()
             response = requests.Response()
@@ -449,9 +455,9 @@ class KerberosTestCase(unittest.TestCase):
 
             r = auth.handle_response(response)
 
-            self.assertTrue(response in r.history)
-            self.assertEqual(r, response_auth_reject)
-            self.assertEqual(request.headers['Authorization'], 'Negotiate GSSRESPONSE')
+            self.assertEqual(r.status_code, 401)
+            self.assertEqual(request.headers['Authorization'],
+                             'Negotiate GSSRESPONSE')
             connection.send.assert_called_with(request)
             raw.release_conn.assert_called_with()
             clientInit_complete.assert_called_with("HTTP@www.example.org")
