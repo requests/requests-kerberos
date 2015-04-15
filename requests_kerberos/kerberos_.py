@@ -253,6 +253,11 @@ class HTTPKerberosAuth(AuthBase):
             log.debug("handle_response() has seen %d 401 responses", num_401s)
             num_401s += 1
             return self.handle_response(_r, num_401s=num_401s, **kwargs)
+        elif response.status_code == 401 and num_401s >= 2:
+            # Still receiving 401 responses after attempting to handle them.
+            # Authentication has failed. Return the 401 response.
+            log.debug("handle_response(): returning 401 %s", response)
+            return response
         else:
             _r = self.handle_other(response)
             log.debug("handle_response(): returning %s", _r)
