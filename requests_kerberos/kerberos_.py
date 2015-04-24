@@ -239,19 +239,29 @@ class HTTPKerberosAuth(AuthBase):
 
     def handle_response(self, response, **kwargs):
         """Takes the given response and tries kerberos-auth, as needed."""
+        num_401s = kwargs.pop('num_401s', 0)
 
         if self.pos is not None:
             # Rewind the file position indicator of the body to where
             # it was to resend the request.
             response.request.body.seek(self.pos)
 
-        if response.status_code == 401:
+        if response.status_code == 401 and num_401s < 2:
+            # 401 Unauthorized. Handle it, and if it still comes back as 401,
+            # that means authentication failed.
             _r = self.handle_401(response, **kwargs)
-            log.debug("handle_response(): returning {0}".format(_r))
-            return self.handle_response(_r, **kwargs)
+            log.debug("handle_response(): returning %s", _r)
+            log.debug("handle_response() has seen %d 401 responses", num_401s)
+            num_401s += 1
+            return self.handle_response(_r, num_401s=num_401s, **kwargs)
+        elif response.status_code == 401 and num_401s >= 2:
+            # Still receiving 401 responses after attempting to handle them.
+            # Authentication has failed. Return the 401 response.
+            log.debug("handle_response(): returning 401 %s", response)
+            return response
         else:
             _r = self.handle_other(response)
-            log.debug("handle_response(): returning {0}".format(_r))
+            log.debug("handle_response(): returning %s", _r)
             return _r
 
     def deregister(self, response):
