@@ -1,6 +1,17 @@
 History
 =======
 
+0.7.0: 2015-05-04
+-----------------
+
+- Added Windows native authentication support by adding kerberos-sspi as an
+  alternative backend.
+
+- Prevent infinite recursion when a server returns 401 to an authorization
+  attempt.
+
+- Reduce the logging during successful responses.
+
 0.6.1: 2014-11-14
 -----------------
 
