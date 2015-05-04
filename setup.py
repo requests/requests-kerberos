@@ -1,11 +1,17 @@
 #!/usr/bin/env python
 # coding: utf-8
 import os
+import sys
 import re
 from setuptools import setup
 
 with open('requirements.txt') as requirements:
     requires = [line.strip() for line in requirements if line.strip()]
+
+if sys.platform == 'win32':
+    requires.append('kerberos-sspi')
+else:
+    requires.append('kerberos==1.1.1')
 
 path = os.path.dirname(__file__)
 desc_fd = os.path.join(path, 'README.rst')
