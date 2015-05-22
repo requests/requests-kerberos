@@ -446,7 +446,7 @@ class KerberosTestCase(unittest.TestCase):
                     kerberos.GSS_C_SEQUENCE_FLAG))
             clientStep_continue.assert_called_with("CTX", "token")
             clientResponse.assert_called_with("CTX")
-            
+
     def test_handle_response_401_rejected(self):
         # Get a 401 from server, authenticate, and get another 401 back.
         # Ensure there is no infinite recursion.
@@ -488,7 +488,11 @@ class KerberosTestCase(unittest.TestCase):
                              'Negotiate GSSRESPONSE')
             connection.send.assert_called_with(request)
             raw.release_conn.assert_called_with()
-            clientInit_complete.assert_called_with("HTTP@www.example.org")
+            clientInit_complete.assert_called_with(
+                "HTTP@www.example.org",
+                gssflags=(
+                    kerberos.GSS_C_MUTUAL_FLAG |
+                    kerberos.GSS_C_SEQUENCE_FLAG))
             clientStep_continue.assert_called_with("CTX", "token")
             clientResponse.assert_called_with("CTX")
 

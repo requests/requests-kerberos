@@ -110,9 +110,9 @@ class HTTPKerberosAuth(AuthBase):
         try:
             result, self.context[host] = kerberos.authGSSClientInit(
                 "{0}@{1}".format(self.service, host), gssflags=gssflags)
-        except kerberos.GSSError:
+        except kerberos.GSSError as error:
             log.error("generate_request_header(): authGSSClientInit() failed:")
-            log.exception(e)
+            log.exception(error)
             return None
 
         if result < 1:
@@ -123,21 +123,24 @@ class HTTPKerberosAuth(AuthBase):
         try:
             result = kerberos.authGSSClientStep(self.context[host],
                                                 _negotiate_value(response))
-        except kerberos.GSSError:
+        except kerberos.GSSError as error:
             log.exception(
                 "generate_request_header(): authGSSClientStep() failed:")
+            log.exception(error)
             return None
 
         if result < 0:
-            log.error("generate_request_header(): authGSSClientStep() failed: "
-                      "{0}".format(result))
+            log.error(
+                "generate_request_header(): authGSSClientStep() failed: "
+                "{0}".format(result))
             return None
 
         try:
             gss_response = kerberos.authGSSClientResponse(self.context[host])
-        except kerberos.GSSError:
+        except kerberos.GSSError as error:
             log.exception(
                 "generate_request_header(): authGSSClientResponse() failed:")
+            log.exception(error)
             return None
 
         return "Negotiate {0}".format(gss_response)
