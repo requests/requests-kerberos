@@ -5,7 +5,15 @@
 
 from mock import Mock, patch
 import requests
-import kerberos
+
+
+try:
+    import kerberos
+    kerberos_module_name='kerberos'
+except ImportError:
+    import kerberos_sspi as kerberos # On Windows
+    kerberos_module_name='kerberos_sspi'
+
 import requests_kerberos
 import unittest
 
@@ -67,7 +75,7 @@ class KerberosTestCase(unittest.TestCase):
         )
 
     def test_generate_request_header(self):
-        with patch.multiple('kerberos',
+        with patch.multiple(kerberos_module_name,
                             authGSSClientInit=clientInit_complete,
                             authGSSClientResponse=clientResponse,
                             authGSSClientStep=clientStep_continue):
@@ -84,7 +92,7 @@ class KerberosTestCase(unittest.TestCase):
             clientResponse.assert_called_with("CTX")
 
     def test_generate_request_header_init_error(self):
-        with patch.multiple('kerberos',
+        with patch.multiple(kerberos_module_name,
                             authGSSClientInit=clientInit_error,
                             authGSSClientResponse=clientResponse,
                             authGSSClientStep=clientStep_continue):
@@ -101,7 +109,7 @@ class KerberosTestCase(unittest.TestCase):
             self.assertFalse(clientResponse.called)
 
     def test_generate_request_header_step_error(self):
-        with patch.multiple('kerberos',
+        with patch.multiple(kerberos_module_name,
                             authGSSClientInit=clientInit_complete,
                             authGSSClientResponse=clientResponse,
                             authGSSClientStep=clientStep_error):
@@ -118,7 +126,7 @@ class KerberosTestCase(unittest.TestCase):
             self.assertFalse(clientResponse.called)
 
     def test_authenticate_user(self):
-        with patch.multiple('kerberos',
+        with patch.multiple(kerberos_module_name,
                             authGSSClientInit=clientInit_complete,
                             authGSSClientResponse=clientResponse,
                             authGSSClientStep=clientStep_continue):
@@ -157,7 +165,7 @@ class KerberosTestCase(unittest.TestCase):
 
 
     def test_handle_401(self):
-        with patch.multiple('kerberos',
+        with patch.multiple(kerberos_module_name,
                             authGSSClientInit=clientInit_complete,
                             authGSSClientResponse=clientResponse,
                             authGSSClientStep=clientStep_continue):
@@ -195,7 +203,7 @@ class KerberosTestCase(unittest.TestCase):
             clientResponse.assert_called_with("CTX")
 
     def test_authenticate_server(self):
-        with patch.multiple('kerberos', authGSSClientStep=clientStep_complete):
+        with patch.multiple(kerberos_module_name, authGSSClientStep=clientStep_complete):
 
             response_ok = requests.Response()
             response_ok.url = "http://www.example.org/"
@@ -212,7 +220,7 @@ class KerberosTestCase(unittest.TestCase):
             clientStep_complete.assert_called_with("CTX", "servertoken")
 
     def test_handle_other(self):
-        with patch('kerberos.authGSSClientStep', clientStep_complete):
+        with patch(kerberos_module_name+'.authGSSClientStep', clientStep_complete):
 
             response_ok = requests.Response()
             response_ok.url = "http://www.example.org/"
@@ -230,7 +238,7 @@ class KerberosTestCase(unittest.TestCase):
             clientStep_complete.assert_called_with("CTX", "servertoken")
 
     def test_handle_response_200(self):
-        with patch('kerberos.authGSSClientStep', clientStep_complete):
+        with patch(kerberos_module_name+'.authGSSClientStep', clientStep_complete):
 
             response_ok = requests.Response()
             response_ok.url = "http://www.example.org/"
@@ -248,7 +256,7 @@ class KerberosTestCase(unittest.TestCase):
             clientStep_complete.assert_called_with("CTX", "servertoken")
 
     def test_handle_response_200_mutual_auth_required_failure(self):
-        with patch('kerberos.authGSSClientStep', clientStep_error):
+        with patch(kerberos_module_name+'.authGSSClientStep', clientStep_error):
 
             response_ok = requests.Response()
             response_ok.url = "http://www.example.org/"
@@ -265,7 +273,7 @@ class KerberosTestCase(unittest.TestCase):
             self.assertFalse(clientStep_error.called)
 
     def test_handle_response_200_mutual_auth_required_failure_2(self):
-        with patch('kerberos.authGSSClientStep', clientStep_exception):
+        with patch(kerberos_module_name+'.authGSSClientStep', clientStep_exception):
 
             response_ok = requests.Response()
             response_ok.url = "http://www.example.org/"
@@ -284,7 +292,7 @@ class KerberosTestCase(unittest.TestCase):
             clientStep_exception.assert_called_with("CTX", "servertoken")
 
     def test_handle_response_200_mutual_auth_optional_hard_failure(self):
-        with patch('kerberos.authGSSClientStep', clientStep_error):
+        with patch(kerberos_module_name+'.authGSSClientStep', clientStep_error):
 
             response_ok = requests.Response()
             response_ok.url = "http://www.example.org/"
@@ -305,7 +313,7 @@ class KerberosTestCase(unittest.TestCase):
 
 
     def test_handle_response_200_mutual_auth_optional_soft_failure(self):
-        with patch('kerberos.authGSSClientStep', clientStep_error):
+        with patch(kerberos_module_name+'.authGSSClientStep', clientStep_error):
 
             response_ok = requests.Response()
             response_ok.url = "http://www.example.org/"
@@ -321,7 +329,7 @@ class KerberosTestCase(unittest.TestCase):
             self.assertFalse(clientStep_error.called)
 
     def test_handle_response_500_mutual_auth_required_failure(self):
-        with patch('kerberos.authGSSClientStep', clientStep_error):
+        with patch(kerberos_module_name+'.authGSSClientStep', clientStep_error):
 
             response_500 = requests.Response()
             response_500.url = "http://www.example.org/"
@@ -347,13 +355,13 @@ class KerberosTestCase(unittest.TestCase):
             self.assertEqual(r.url, response_500.url)
             self.assertEqual(r.reason, response_500.reason)
             self.assertEqual(r.connection, response_500.connection)
-            self.assertEqual(r.content, b'')
+            self.assertEqual(r.content, '')
             self.assertNotEqual(r.cookies, response_500.cookies)
 
             self.assertFalse(clientStep_error.called)
 
     def test_handle_response_500_mutual_auth_optional_failure(self):
-        with patch('kerberos.authGSSClientStep', clientStep_error):
+        with patch(kerberos_module_name+'.authGSSClientStep', clientStep_error):
 
             response_500 = requests.Response()
             response_500.url = "http://www.example.org/"
@@ -378,7 +386,7 @@ class KerberosTestCase(unittest.TestCase):
 
     def test_handle_response_401(self):
         # Get a 401 from server, authenticate, and get a 200 back.
-        with patch.multiple('kerberos',
+        with patch.multiple(kerberos_module_name,
                             authGSSClientInit=clientInit_complete,
                             authGSSClientResponse=clientResponse,
                             authGSSClientStep=clientStep_continue):
@@ -418,11 +426,11 @@ class KerberosTestCase(unittest.TestCase):
             clientInit_complete.assert_called_with("HTTP@www.example.org")
             clientStep_continue.assert_called_with("CTX", "token")
             clientResponse.assert_called_with("CTX")
-            
+
     def test_handle_response_401_rejected(self):
         # Get a 401 from server, authenticate, and get another 401 back.
         # Ensure there is no infinite recursion.
-        with patch.multiple('kerberos',
+        with patch.multiple(kerberos_module_name,
                             authGSSClientInit=clientInit_complete,
                             authGSSClientResponse=clientResponse,
                             authGSSClientStep=clientStep_continue):
@@ -465,7 +473,7 @@ class KerberosTestCase(unittest.TestCase):
             clientResponse.assert_called_with("CTX")
 
     def test_generate_request_header_custom_service(self):
-        with patch.multiple('kerberos',
+        with patch.multiple(kerberos_module_name,
                             authGSSClientInit=clientInit_error,
                             authGSSClientResponse=clientResponse,
                             authGSSClientStep=clientStep_continue):

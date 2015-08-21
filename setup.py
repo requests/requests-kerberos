@@ -35,7 +35,7 @@ def get_version():
     """
     reg = re.compile(r'__version__ = [\'"]([^\'"]*)[\'"]')
     with open('requests_kerberos/__init__.py') as fd:
-        matches = filter(lambda x: x, map(reg.match, fd))
+        matches = list(filter(lambda x: x, map(reg.match, fd)))
 
     if not matches:
         raise RuntimeError(
