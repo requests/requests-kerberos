@@ -11,7 +11,7 @@ with open('requirements.txt') as requirements:
 if sys.platform == 'win32':
     requires.append('kerberos-sspi')
 else:
-    requires.append('kerberos==1.1.1')
+    requires.append('pykerberos')
 
 path = os.path.dirname(__file__)
 desc_fd = os.path.join(path, 'README.rst')
