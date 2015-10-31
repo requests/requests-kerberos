@@ -1,17 +1,8 @@
 #!/usr/bin/env python
 # coding: utf-8
 import os
-import sys
 import re
 from setuptools import setup
-
-with open('requirements.txt') as requirements:
-    requires = [line.strip() for line in requirements if line.strip()]
-
-if sys.platform == 'win32':
-    requires.append('kerberos-sspi')
-else:
-    requires.append('kerberos==1.1.1')
 
 path = os.path.dirname(__file__)
 desc_fd = os.path.join(path, 'README.rst')
@@ -56,7 +47,13 @@ setup(
     package_data={'': ['LICENSE', 'AUTHORS']},
     include_package_data=True,
     version=get_version(),
-    install_requires=requires,
+    install_requires=[
+        'requests>=1.1.0',
+    ],
+    extras_require={
+        ':sys_platform=="win32"': ['kerberos-sspi>=0.2'],
+        ':sys_platform!="win32"': ['pykerberos>=1.1.8,<2.0.0'],
+    },
     test_suite='test_requests_kerberos',
     tests_require=['mock'],
 )
