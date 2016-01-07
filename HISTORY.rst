@@ -1,6 +1,13 @@
 History
 =======
 
+0.8.0: 2016-01-07
+-----------------
+
+- Support for Kerberos delegation.
+
+- Fixed problems declaring kerberos-sspi on Windows installs.
+
 0.7.0: 2015-05-04
 -----------------
 
