@@ -11,10 +11,9 @@ from requests.compat import urlparse, StringIO
 from requests.structures import CaseInsensitiveDict
 from requests.cookies import cookiejar_from_dict
 
-from .exceptions import MutualAuthenticationError
+from .exceptions import MutualAuthenticationError, KerberosExchangeError
 
 log = logging.getLogger(__name__)
-
 
 # Different types of mutual authentication:
 #  with mutual_authentication set to REQUIRED, all responses will be
@@ -30,7 +29,6 @@ log = logging.getLogger(__name__)
 REQUIRED = 1
 OPTIONAL = 2
 DISABLED = 3
-
 
 class SanitizedResponse(Response):
     """The :class:`Response <Response>` object, which contains a server's
@@ -86,21 +84,22 @@ class HTTPKerberosAuth(AuthBase):
     object."""
     def __init__(
             self, mutual_authentication=REQUIRED,
-            service="HTTP", delegate=False):
+            service="HTTP", delegate=False, force_preemptive=False):
         self.context = {}
         self.mutual_authentication = mutual_authentication
         self.delegate = delegate
         self.pos = None
         self.service = service
+        self.force_preemptive = force_preemptive
 
-    def generate_request_header(self, response):
+    def generate_request_header(self, response, host, is_preemptive=False):
         """
         Generates the GSSAPI authentication token with kerberos.
 
-        If any GSSAPI step fails, return None.
+        If any GSSAPI step fails, raise KerberosExchangeError
+        with failure detail.
 
         """
-        host = urlparse(response.url).hostname
 
         # Flags used by kerberos module.
         gssflags = kerberos.GSS_C_MUTUAL_FLAG | kerberos.GSS_C_SEQUENCE_FLAG
@@ -108,48 +107,52 @@ class HTTPKerberosAuth(AuthBase):
             gssflags |= kerberos.GSS_C_DELEG_FLAG
 
         try:
+            kerb_stage = "authGSSClientInit()"
             result, self.context[host] = kerberos.authGSSClientInit(
                 "{0}@{1}".format(self.service, host), gssflags=gssflags)
-        except kerberos.GSSError as error:
-            log.error("generate_request_header(): authGSSClientInit() failed:")
-            log.exception(error)
-            return None
 
-        if result < 1:
-            log.error("generate_request_header(): authGSSClientInit() failed: "
-                      "{0}".format(result))
-            return None
+            if result < 1:
+                raise EnvironmentError(result, kerb_stage)
 
-        try:
+            # if we have a previous response from the server, use it to continue
+            # the auth process, otherwise use an empty value
+            negotiate_resp_value = '' if is_preemptive else _negotiate_value(response)
+
+            kerb_stage = "authGSSClientStep()"
             result = kerberos.authGSSClientStep(self.context[host],
-                                                _negotiate_value(response))
-        except kerberos.GSSError as error:
-            log.exception(
-                "generate_request_header(): authGSSClientStep() failed:")
-            log.exception(error)
-            return None
+                                                negotiate_resp_value)
 
-        if result < 0:
-            log.error(
-                "generate_request_header(): authGSSClientStep() failed: "
-                "{0}".format(result))
-            return None
+            if result < 0:
+                raise EnvironmentError(result, kerb_stage)
 
-        try:
+            kerb_stage = "authGSSClientResponse()"
             gss_response = kerberos.authGSSClientResponse(self.context[host])
+
+            return "Negotiate {0}".format(gss_response)
+
         except kerberos.GSSError as error:
             log.exception(
-                "generate_request_header(): authGSSClientResponse() failed:")
+                "generate_request_header(): {0} failed:".format(kerb_stage))
             log.exception(error)
-            return None
+            raise KerberosExchangeError("%s failed: %s" % (kerb_stage, str(error.args)))
 
-        return "Negotiate {0}".format(gss_response)
+        except EnvironmentError as error:
+            # ensure we raised this for translation to KerberosExchangeError
+            # by comparing errno to result, re-raise if not
+            if error.errno != result:
+                raise
+            message = "{0} failed, result: {1}".format(kerb_stage, result)
+            log.error("generate_request_header(): {0}".format(message))
+            raise KerberosExchangeError(message)
 
     def authenticate_user(self, response, **kwargs):
         """Handles user authentication with gssapi/kerberos"""
 
-        auth_header = self.generate_request_header(response)
-        if auth_header is None:
+        host = urlparse(response.url).hostname
+
+        try:
+            auth_header = self.generate_request_header(response, host)
+        except KerberosExchangeError:
             # GSS Failure, return existing response
             return response
 
@@ -285,6 +288,17 @@ class HTTPKerberosAuth(AuthBase):
         response.request.deregister_hook('response', self.handle_response)
 
     def __call__(self, request):
+        if self.force_preemptive:
+            # add Authorization header before we receive a 401
+            # by the 401 handler
+            host = urlparse(request.url).hostname
+
+            auth_header = self.generate_request_header(None, host, is_preemptive=True)
+
+            log.debug("HTTPKerberosAuth: Preemptive Authorization header: {0}".format(auth_header))
+
+            request.headers['Authorization'] = auth_header
+
         request.register_hook('response', self.handle_response)
         try:
             self.pos = request.body.tell()

@@ -4,6 +4,7 @@
 """Tests for requests_kerberos."""
 
 from mock import Mock, patch
+from requests.compat import urlparse
 import requests
 
 
@@ -73,6 +74,33 @@ class KerberosTestCase(unittest.TestCase):
             requests_kerberos.kerberos_._negotiate_value(response) is None
         )
 
+    def test_force_preemptive(self):
+        with patch.multiple(kerberos_module_name,
+                            authGSSClientInit=clientInit_complete,
+                            authGSSClientResponse=clientResponse,
+                            authGSSClientStep=clientStep_continue):
+            auth = requests_kerberos.HTTPKerberosAuth(force_preemptive=True)
+
+            request = requests.Request(url="http://www.example.org")
+
+            auth.__call__(request)
+
+            self.assertTrue('Authorization' in request.headers)
+            self.assertEqual(request.headers.get('Authorization'), 'Negotiate GSSRESPONSE')
+
+    def test_no_force_preemptive(self):
+        with patch.multiple(kerberos_module_name,
+                            authGSSClientInit=clientInit_complete,
+                            authGSSClientResponse=clientResponse,
+                            authGSSClientStep=clientStep_continue):
+            auth = requests_kerberos.HTTPKerberosAuth()
+
+            request = requests.Request(url="http://www.example.org")
+
+            auth.__call__(request)
+
+            self.assertTrue('Authorization' not in request.headers)
+
     def test_generate_request_header(self):
         with patch.multiple(kerberos_module_name,
                             authGSSClientInit=clientInit_complete,
@@ -81,9 +109,10 @@ class KerberosTestCase(unittest.TestCase):
             response = requests.Response()
             response.url = "http://www.example.org/"
             response.headers = {'www-authenticate': 'negotiate token'}
+            host = urlparse(response.url).hostname
             auth = requests_kerberos.HTTPKerberosAuth()
             self.assertEqual(
-                auth.generate_request_header(response),
+                auth.generate_request_header(response, host),
                 "Negotiate GSSRESPONSE"
             )
             clientInit_complete.assert_called_with(
@@ -102,10 +131,10 @@ class KerberosTestCase(unittest.TestCase):
             response = requests.Response()
             response.url = "http://www.example.org/"
             response.headers = {'www-authenticate': 'negotiate token'}
+            host = urlparse(response.url).hostname
             auth = requests_kerberos.HTTPKerberosAuth()
-            self.assertEqual(
-                auth.generate_request_header(response),
-                None
+            self.assertRaises(requests_kerberos.exceptions.KerberosExchangeError,
+                auth.generate_request_header, response, host
             )
             clientInit_error.assert_called_with(
                 "HTTP@www.example.org",
@@ -123,10 +152,10 @@ class KerberosTestCase(unittest.TestCase):
             response = requests.Response()
             response.url = "http://www.example.org/"
             response.headers = {'www-authenticate': 'negotiate token'}
+            host = urlparse(response.url).hostname
             auth = requests_kerberos.HTTPKerberosAuth()
-            self.assertEqual(
-                auth.generate_request_header(response),
-                None
+            self.assertRaises(requests_kerberos.exceptions.KerberosExchangeError,
+                auth.generate_request_header, response, host
             )
             clientInit_complete.assert_called_with(
                 "HTTP@www.example.org",
@@ -506,15 +535,16 @@ class KerberosTestCase(unittest.TestCase):
 
     def test_generate_request_header_custom_service(self):
         with patch.multiple(kerberos_module_name,
-                            authGSSClientInit=clientInit_error,
+                            authGSSClientInit=clientInit_complete,
                             authGSSClientResponse=clientResponse,
                             authGSSClientStep=clientStep_continue):
             response = requests.Response()
             response.url = "http://www.example.org/"
             response.headers = {'www-authenticate': 'negotiate token'}
+            host = urlparse(response.url).hostname
             auth = requests_kerberos.HTTPKerberosAuth(service="barfoo")
-            auth.generate_request_header(response),
-            clientInit_error.assert_called_with(
+            auth.generate_request_header(response, host),
+            clientInit_complete.assert_called_with(
                 "barfoo@www.example.org",
                 gssflags=(
                     kerberos.GSS_C_MUTUAL_FLAG |
