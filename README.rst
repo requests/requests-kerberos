@@ -62,6 +62,19 @@ authentication, you can do that as well:
     >>> r = requests.get("http://example.org", auth=kerberos_auth)
     ...
 
+Preemptive Authentication
+-------------------------
+
+``HTTPKerberosAuth`` can be forced to preemptively initiate the Kerberos GSS exchange and present a Kerberos ticket on the initial request (and all subsequent). By default, authentication only occurs after a ``401 Unauthorized`` response containing a Kerberos or Negotiate challenge is received from the origin server. This can cause mutual authentication failures for hosts that use a persistent connection (eg, Windows/WinRM), as no Kerberos challenges are sent after the initial auth handshake. This behavior can be altered by setting  ``force_preemptive=True``:
+
+.. code-block:: pycon
+    
+    >>> import requests
+    >>> from requests_kerberos import HTTPKerberosAuth, REQUIRED
+    >>> kerberos_auth = HTTPKerberosAuth(mutual_authentication=REQUIRED, force_preemptive=True)
+    >>> r = requests.get("https://windows.example.org/wsman", auth=kerberos_auth)
+    ...
+
 Logging
 -------
 
