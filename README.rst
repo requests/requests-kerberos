@@ -65,7 +65,14 @@ authentication, you can do that as well:
 Preemptive Authentication
 -------------------------
 
-``HTTPKerberosAuth`` can be forced to preemptively initiate the Kerberos GSS exchange and present a Kerberos ticket on the initial request (and all subsequent). By default, authentication only occurs after a ``401 Unauthorized`` response containing a Kerberos or Negotiate challenge is received from the origin server. This can cause mutual authentication failures for hosts that use a persistent connection (eg, Windows/WinRM), as no Kerberos challenges are sent after the initial auth handshake. This behavior can be altered by setting  ``force_preemptive=True``:
+``HTTPKerberosAuth`` can be forced to preemptively initiate the Kerberos
+GSS exchange and present a Kerberos ticket on the initial request (and all
+subsequent). By default, authentication only occurs after a
+``401 Unauthorized`` response containing a Kerberos or Negotiate challenge
+is received from the origin server. This can cause mutual authentication
+failures for hosts that use a persistent connection (eg, Windows/WinRM), as
+no Kerberos challenges are sent after the initial auth handshake. This
+behavior can be altered by setting  ``force_preemptive=True``:
 
 .. code-block:: pycon
     
@@ -73,6 +80,41 @@ Preemptive Authentication
     >>> from requests_kerberos import HTTPKerberosAuth, REQUIRED
     >>> kerberos_auth = HTTPKerberosAuth(mutual_authentication=REQUIRED, force_preemptive=True)
     >>> r = requests.get("https://windows.example.org/wsman", auth=kerberos_auth)
+    ...
+
+Hostname Override
+-----------------
+
+If communicating with a host whose DNS name doesn't match its
+kerberos hostname (eg, behind a content switch or load balancer),
+the hostname used for the Kerberos GSS exchange can be overridden by
+setting the ``hostname_override`` arg:
+
+.. code-block:: pycon
+
+    >>> import requests
+    >>> from requests_kerberos import HTTPKerberosAuth, REQUIRED
+    >>> kerberos_auth = HTTPKerberosAuth(hostname_override="internalhost.local")
+    >>> r = requests.get("https://externalhost.example.org/", auth=kerberos_auth)
+    ...
+
+Explicit Principal
+------------------
+
+``HTTPKerberosAuth`` normally uses the default principal (ie, the user for
+whom you last ran ``kinit`` or ``kswitch``, or an SSO credential if
+applicable). However, an explicit principal can be specified, which will
+cause Kerberos to look for a matching credential cache for the named user.
+This feature depends on OS support for collection-type credential caches,
+as well as working principal support in pykerberos (it is broken in many
+builds). An explicit principal can be specified with the ``principal`` arg:
+
+.. code-block:: pycon
+
+    >>> import requests
+    >>> from requests_kerberos import HTTPKerberosAuth, REQUIRED
+    >>> kerberos_auth = HTTPKerberosAuth(principal="user@REALM")
+    >>> r = requests.get("http://example.org", auth=kerberos_auth)
     ...
 
 Logging

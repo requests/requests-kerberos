@@ -84,13 +84,16 @@ class HTTPKerberosAuth(AuthBase):
     object."""
     def __init__(
             self, mutual_authentication=REQUIRED,
-            service="HTTP", delegate=False, force_preemptive=False):
+            service="HTTP", delegate=False, force_preemptive=False,
+            principal=None, hostname_override=None):
         self.context = {}
         self.mutual_authentication = mutual_authentication
         self.delegate = delegate
         self.pos = None
         self.service = service
         self.force_preemptive = force_preemptive
+        self.principal = principal
+        self.hostname_override = hostname_override
 
     def generate_request_header(self, response, host, is_preemptive=False):
         """
@@ -108,8 +111,15 @@ class HTTPKerberosAuth(AuthBase):
 
         try:
             kerb_stage = "authGSSClientInit()"
-            result, self.context[host] = kerberos.authGSSClientInit(
-                "{0}@{1}".format(self.service, host), gssflags=gssflags)
+            # contexts still need to be stored by host, but hostname_override
+            # allows use of an arbitrary hostname for the kerberos exchange
+            # (eg, in cases of aliased hosts, internal vs external, CNAMEs
+            # w/ name-based HTTP hosting)
+            kerb_host = self.hostname_override if self.hostname_override is not None else host
+            kerb_spn = "{0}@{1}".format(self.service, kerb_host)
+
+            result, self.context[host] = kerberos.authGSSClientInit(kerb_spn,
+                gssflags=gssflags, principal=self.principal)
 
             if result < 1:
                 raise EnvironmentError(result, kerb_stage)
