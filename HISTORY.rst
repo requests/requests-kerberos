@@ -1,6 +1,13 @@
 History
 =======
 
+0.9.0: 2016-05-06
+-----------------
+
+- Support for principal, hostname, and realm override.
+
+- Added support for mutual auth.
+
 0.8.0: 2016-01-07
 -----------------
 
