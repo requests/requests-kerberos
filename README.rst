@@ -24,11 +24,26 @@ the 401 response.
 Mutual Authentication
 ---------------------
 
+REQUIRED
+^^^^^^^^
+
 By default, ``HTTPKerberosAuth`` will require mutual authentication from the
 server, and if a server emits a non-error response which cannot be
-authenticated, a ``requests_kerberos.errors.MutualAuthenticationError`` will be
-raised. If a server emits an error which cannot be authenticated, it will be
-returned to the user but with its contents and headers stripped.
+authenticated, a ``requests_kerberos.errors.MutualAuthenticationError`` will
+be raised. If a server emits an error which cannot be authenticated, it will
+be returned to the user but with its contents and headers stripped. If the
+response content is more important than the need for mutual auth on errors,
+(eg, for certain WinRM calls) the stripping behavior can be suppressed by
+setting ``sanitize_mutual_error_response=False``:
+
+.. code-block:: pycon
+
+    >>> import requests
+    >>> from requests_kerberos import HTTPKerberosAuth, REQUIRED
+    >>> kerberos_auth = HTTPKerberosAuth(mutual_authentication=REQUIRED, sanitize_mutual_error_response=False)
+    >>> r = requests.get("https://windows.example.org/wsman", auth=kerberos_auth)
+    ...
+
 
 OPTIONAL
 ^^^^^^^^

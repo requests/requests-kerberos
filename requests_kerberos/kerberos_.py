@@ -85,7 +85,7 @@ class HTTPKerberosAuth(AuthBase):
     def __init__(
             self, mutual_authentication=REQUIRED,
             service="HTTP", delegate=False, force_preemptive=False,
-            principal=None, hostname_override=None):
+            principal=None, hostname_override=None, sanitize_mutual_error_response=True):
         self.context = {}
         self.mutual_authentication = mutual_authentication
         self.delegate = delegate
@@ -94,6 +94,7 @@ class HTTPKerberosAuth(AuthBase):
         self.force_preemptive = force_preemptive
         self.principal = principal
         self.hostname_override = hostname_override
+        self.sanitize_mutual_error_response = sanitize_mutual_error_response
 
     def generate_request_header(self, response, host, is_preemptive=False):
         """
@@ -224,7 +225,8 @@ class HTTPKerberosAuth(AuthBase):
                     log.error("handle_other(): Mutual authentication unavailable "
                               "on {0} response".format(response.status_code))
 
-                if self.mutual_authentication == REQUIRED:
+                if self.mutual_authentication == REQUIRED and \
+                        self.sanitize_mutual_error_response:
                     return SanitizedResponse(response)
                 else:
                     return response
