@@ -403,7 +403,7 @@ class KerberosTestCase(unittest.TestCase):
 
             r = auth.handle_response(response_500)
 
-            self.assertIsInstance(r, requests_kerberos.kerberos_.SanitizedResponse)
+            self.assertTrue(isinstance(r, requests_kerberos.kerberos_.SanitizedResponse))
             self.assertNotEqual(r, response_500)
             self.assertNotEqual(r.headers, response_500.headers)
             self.assertEqual(r.status_code, response_500.status_code)
@@ -423,7 +423,7 @@ class KerberosTestCase(unittest.TestCase):
 
             r = auth.handle_response(response_500)
 
-            self.assertNotIsInstance(r, requests_kerberos.kerberos_.SanitizedResponse)
+            self.assertFalse(isinstance(r, requests_kerberos.kerberos_.SanitizedResponse))
 
     def test_handle_response_500_mutual_auth_optional_failure(self):
         with patch(kerberos_module_name+'.authGSSClientStep', clientStep_error):
