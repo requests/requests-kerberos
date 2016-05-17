@@ -640,6 +640,16 @@ class KerberosTestCase(unittest.TestCase):
                     kerberos.GSS_C_MUTUAL_FLAG |
                     kerberos.GSS_C_SEQUENCE_FLAG),
                 principal=None)
+    
+    def test_kerberos_sspi_reject_principal(self):
+        response = requests.Response()
+        response.url = "http://www.example.org/"
+        host = urlparse(response.url).hostname
+           
+        auth = requests_kerberos.HTTPKerberosAuth(principal="user@REALM")
+        auth._using_kerberos_sspi = True
+        with self.assertRaises(NotImplementedError):
+            auth.generate_request_header(response, host)
 
 
 if __name__ == '__main__':

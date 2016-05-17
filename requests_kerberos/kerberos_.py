@@ -1,7 +1,9 @@
 try:
     import kerberos
+    using_kerberos_sspi = False
 except ImportError:
     import kerberos_sspi as kerberos
+    using_kerberos_sspi = True
 import re
 import logging
 
@@ -94,6 +96,7 @@ class HTTPKerberosAuth(AuthBase):
         self.force_preemptive = force_preemptive
         self.principal = principal
         self.hostname_override = hostname_override
+        self._using_kerberos_sspi = using_kerberos_sspi
 
     def generate_request_header(self, response, host, is_preemptive=False):
         """
@@ -117,9 +120,13 @@ class HTTPKerberosAuth(AuthBase):
             # w/ name-based HTTP hosting)
             kerb_host = self.hostname_override if self.hostname_override is not None else host
             kerb_spn = "{0}@{1}".format(self.service, kerb_host)
+            
+            kwargs = {'principal': self.principal}
+            if self._using_kerberos_sspi and self.principal:
+                raise NotImplementedError("Can't use 'principal' argument with kerberos-sspi.")
 
             result, self.context[host] = kerberos.authGSSClientInit(kerb_spn,
-                gssflags=gssflags, principal=self.principal)
+                gssflags=gssflags, **kwargs)
 
             if result < 1:
                 raise EnvironmentError(result, kerb_stage)
