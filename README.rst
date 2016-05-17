@@ -6,7 +6,7 @@ adds optional Kerberos/GSSAPI authentication support and supports mutual
 authentication. Basic GET usage:
 
 
-.. code-block:: pycon
+.. code-block:: python
 
     >>> import requests
     >>> from requests_kerberos import HTTPKerberosAuth
@@ -36,7 +36,7 @@ response content is more important than the need for mutual auth on errors,
 (eg, for certain WinRM calls) the stripping behavior can be suppressed by
 setting ``sanitize_mutual_error_response=False``:
 
-.. code-block:: pycon
+.. code-block:: python
 
     >>> import requests
     >>> from requests_kerberos import HTTPKerberosAuth, REQUIRED
@@ -51,7 +51,7 @@ OPTIONAL
 If you'd prefer to not require mutual authentication, you can set your
 preference when constructing your ``HTTPKerberosAuth`` object:
 
-.. code-block:: pycon
+.. code-block:: python
 
     >>> import requests
     >>> from requests_kerberos import HTTPKerberosAuth, OPTIONAL
@@ -69,7 +69,7 @@ DISABLED
 While we don't recommend it, if you'd prefer to never attempt mutual
 authentication, you can do that as well:
 
-.. code-block:: pycon
+.. code-block:: python
 
     >>> import requests
     >>> from requests_kerberos import HTTPKerberosAuth, DISABLED
@@ -89,7 +89,7 @@ failures for hosts that use a persistent connection (eg, Windows/WinRM), as
 no Kerberos challenges are sent after the initial auth handshake. This
 behavior can be altered by setting  ``force_preemptive=True``:
 
-.. code-block:: pycon
+.. code-block:: python
     
     >>> import requests
     >>> from requests_kerberos import HTTPKerberosAuth, REQUIRED
@@ -105,7 +105,7 @@ kerberos hostname (eg, behind a content switch or load balancer),
 the hostname used for the Kerberos GSS exchange can be overridden by
 setting the ``hostname_override`` arg:
 
-.. code-block:: pycon
+.. code-block:: python
 
     >>> import requests
     >>> from requests_kerberos import HTTPKerberosAuth, REQUIRED
@@ -124,7 +124,7 @@ This feature depends on OS support for collection-type credential caches,
 as well as working principal support in pykerberos (it is broken in many
 builds). An explicit principal can be specified with the ``principal`` arg:
 
-.. code-block:: pycon
+.. code-block:: python
 
     >>> import requests
     >>> from requests_kerberos import HTTPKerberosAuth, REQUIRED
