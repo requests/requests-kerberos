@@ -123,8 +123,11 @@ class HTTPKerberosAuth(AuthBase):
             kerb_spn = "{0}@{1}".format(self.service, kerb_host)
             
             kwargs = {'principal': self.principal}
-            if self._using_kerberos_sspi and self.principal:
-                raise NotImplementedError("Can't use 'principal' argument with kerberos-sspi.")
+            # kerberos-sspi: Never pass principal. Raise if user tries to specify one.
+            if self._using_kerberos_sspi:
+                kwargs = {}
+                if self.principal:
+                    raise NotImplementedError("Can't use 'principal' argument with kerberos-sspi.")
 
             result, self.context[host] = kerberos.authGSSClientInit(kerb_spn,
                 gssflags=gssflags, **kwargs)
