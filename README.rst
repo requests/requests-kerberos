@@ -131,6 +131,10 @@ builds). An explicit principal can be specified with the ``principal`` arg:
     >>> kerberos_auth = HTTPKerberosAuth(principal="user@REALM")
     >>> r = requests.get("http://example.org", auth=kerberos_auth)
     ...
+    
+**Windows users:** Explicit Principal is currently not supported when using 
+``kerberos-sspi``. Providing a value for ``principal`` in this scenario will raise
+``NotImplementedError``.
 
 Logging
 -------
