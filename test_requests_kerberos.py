@@ -54,6 +54,12 @@ class KerberosTestCase(unittest.TestCase):
         clientStep_error.reset_mock()
         clientStep_exception.reset_mock()
         clientResponse.reset_mock()
+        
+        # When using kerberos-sspi, we never pass principal to authGSSClientInit().
+        # This affects our repeated use of assert_called_with().
+        self.clientInit_default_principal = {'principal': None}
+        if kerberos_module_name == 'kerberos_sspi':
+            self.clientInit_default_principal = {}
 
     def tearDown(self):
         """Teardown."""
@@ -120,7 +126,7 @@ class KerberosTestCase(unittest.TestCase):
                 gssflags=(
                     kerberos.GSS_C_MUTUAL_FLAG |
                     kerberos.GSS_C_SEQUENCE_FLAG),
-                principal=None)
+                **self.clientInit_default_principal)
             clientStep_continue.assert_called_with("CTX", "token")
             clientResponse.assert_called_with("CTX")
 
@@ -142,7 +148,7 @@ class KerberosTestCase(unittest.TestCase):
                 gssflags=(
                     kerberos.GSS_C_MUTUAL_FLAG |
                     kerberos.GSS_C_SEQUENCE_FLAG),
-                principal=None)
+                **self.clientInit_default_principal)
             self.assertFalse(clientStep_continue.called)
             self.assertFalse(clientResponse.called)
 
@@ -164,7 +170,7 @@ class KerberosTestCase(unittest.TestCase):
                 gssflags=(
                     kerberos.GSS_C_MUTUAL_FLAG |
                     kerberos.GSS_C_SEQUENCE_FLAG),
-                principal=None)
+                **self.clientInit_default_principal)
             clientStep_error.assert_called_with("CTX", "token")
             self.assertFalse(clientResponse.called)
 
@@ -209,7 +215,7 @@ class KerberosTestCase(unittest.TestCase):
                 gssflags=(
                     kerberos.GSS_C_MUTUAL_FLAG |
                     kerberos.GSS_C_SEQUENCE_FLAG),
-                principal=None)
+                **self.clientInit_default_principal)
             clientStep_continue.assert_called_with("CTX", "token")
             clientResponse.assert_called_with("CTX")
 
@@ -254,7 +260,7 @@ class KerberosTestCase(unittest.TestCase):
                 gssflags=(
                     kerberos.GSS_C_MUTUAL_FLAG |
                     kerberos.GSS_C_SEQUENCE_FLAG),
-                principal=None)
+                **self.clientInit_default_principal)
             clientStep_continue.assert_called_with("CTX", "token")
             clientResponse.assert_called_with("CTX")
 
@@ -495,7 +501,7 @@ class KerberosTestCase(unittest.TestCase):
                 gssflags=(
                     kerberos.GSS_C_MUTUAL_FLAG |
                     kerberos.GSS_C_SEQUENCE_FLAG),
-                principal=None)
+                **self.clientInit_default_principal)
             clientStep_continue.assert_called_with("CTX", "token")
             clientResponse.assert_called_with("CTX")
 
@@ -545,7 +551,7 @@ class KerberosTestCase(unittest.TestCase):
                 gssflags=(
                     kerberos.GSS_C_MUTUAL_FLAG |
                     kerberos.GSS_C_SEQUENCE_FLAG),
-                principal=None)
+                **self.clientInit_default_principal)
             clientStep_continue.assert_called_with("CTX", "token")
             clientResponse.assert_called_with("CTX")
 
@@ -565,7 +571,7 @@ class KerberosTestCase(unittest.TestCase):
                 gssflags=(
                     kerberos.GSS_C_MUTUAL_FLAG |
                     kerberos.GSS_C_SEQUENCE_FLAG),
-                principal=None)
+                **self.clientInit_default_principal)
 
     def test_delegation(self):
         with patch.multiple(kerberos_module_name,
@@ -609,7 +615,7 @@ class KerberosTestCase(unittest.TestCase):
                     kerberos.GSS_C_MUTUAL_FLAG |
                     kerberos.GSS_C_SEQUENCE_FLAG |
                     kerberos.GSS_C_DELEG_FLAG),
-                principal=None
+                **self.clientInit_default_principal
                 )
             clientStep_continue.assert_called_with("CTX", "token")
             clientResponse.assert_called_with("CTX")
@@ -653,16 +659,29 @@ class KerberosTestCase(unittest.TestCase):
                 gssflags=(
                     kerberos.GSS_C_MUTUAL_FLAG |
                     kerberos.GSS_C_SEQUENCE_FLAG),
-                principal=None)
+                **self.clientInit_default_principal)
     
     def test_kerberos_sspi_reject_principal(self):
-        response = requests.Response()
-        response.url = "http://www.example.org/"
-        host = urlparse(response.url).hostname
-           
-        auth = requests_kerberos.HTTPKerberosAuth(principal="user@REALM")
-        auth._using_kerberos_sspi = True
-        self.assertRaises(NotImplementedError, auth.generate_request_header, response, host)
+        with patch.multiple(kerberos_module_name,
+                            authGSSClientInit=clientInit_complete,
+                            authGSSClientResponse=clientResponse,
+                            authGSSClientStep=clientStep_continue):
+            response = requests.Response()
+            response.url = "http://www.example.org/"
+            host = urlparse(response.url).hostname
+               
+            auth = requests_kerberos.HTTPKerberosAuth(principal="user@REALM")
+            auth._using_kerberos_sspi = True
+            self.assertRaises(NotImplementedError, auth.generate_request_header, response, host)
+            
+            auth = requests_kerberos.HTTPKerberosAuth(principal=None)
+            auth._using_kerberos_sspi = True
+            auth.generate_request_header(response, host)
+            clientInit_complete.assert_called_with(
+                "HTTP@www.example.org",
+                gssflags=(
+                    kerberos.GSS_C_MUTUAL_FLAG |
+                    kerberos.GSS_C_SEQUENCE_FLAG))
 
 
 if __name__ == '__main__':
