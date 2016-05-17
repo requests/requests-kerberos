@@ -225,8 +225,8 @@ class HTTPKerberosAuth(AuthBase):
                     log.error("handle_other(): Mutual authentication unavailable "
                               "on {0} response".format(response.status_code))
 
-                if self.mutual_authentication == REQUIRED and \
-                        self.sanitize_mutual_error_response:
+                if(self.mutual_authentication == REQUIRED and
+                       self.sanitize_mutual_error_response):
                     return SanitizedResponse(response)
                 else:
                     return response
