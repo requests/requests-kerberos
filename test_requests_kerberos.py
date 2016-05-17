@@ -559,7 +559,7 @@ class KerberosTestCase(unittest.TestCase):
                 principal=None)
 
     def test_delegation(self):
-        with patch.multiple('kerberos',
+        with patch.multiple(kerberos_module_name,
                             authGSSClientInit=clientInit_complete,
                             authGSSClientResponse=clientResponse,
                             authGSSClientStep=clientStep_continue):
@@ -615,13 +615,18 @@ class KerberosTestCase(unittest.TestCase):
             response.headers = {'www-authenticate': 'negotiate token'}
             host = urlparse(response.url).hostname
             auth = requests_kerberos.HTTPKerberosAuth(principal="user@REALM")
-            auth.generate_request_header(response, host),
-            clientInit_complete.assert_called_with(
-                "HTTP@www.example.org",
-                gssflags=(
-                    kerberos.GSS_C_MUTUAL_FLAG |
-                    kerberos.GSS_C_SEQUENCE_FLAG),
-                principal="user@REALM")
+            try:
+                auth.generate_request_header(response, host)
+                clientInit_complete.assert_called_with(
+                    "HTTP@www.example.org",
+                    gssflags=(
+                        kerberos.GSS_C_MUTUAL_FLAG |
+                        kerberos.GSS_C_SEQUENCE_FLAG),
+                    principal="user@REALM")
+            except NotImplementedError:
+                # principal is not supported with kerberos-sspi.
+                if not auth._using_kerberos_sspi:
+                    raise
 
     def test_realm_override(self):
         with patch.multiple(kerberos_module_name,
@@ -633,7 +638,7 @@ class KerberosTestCase(unittest.TestCase):
             response.headers = {'www-authenticate': 'negotiate token'}
             host = urlparse(response.url).hostname
             auth = requests_kerberos.HTTPKerberosAuth(hostname_override="otherhost.otherdomain.org")
-            auth.generate_request_header(response, host),
+            auth.generate_request_header(response, host)
             clientInit_complete.assert_called_with(
                 "HTTP@otherhost.otherdomain.org",
                 gssflags=(
