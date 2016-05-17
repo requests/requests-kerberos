@@ -653,8 +653,7 @@ class KerberosTestCase(unittest.TestCase):
            
         auth = requests_kerberos.HTTPKerberosAuth(principal="user@REALM")
         auth._using_kerberos_sspi = True
-        with self.assertRaises(NotImplementedError):
-            auth.generate_request_header(response, host)
+        self.assertRaises(NotImplementedError, auth.generate_request_header, response, host)
 
 
 if __name__ == '__main__':
