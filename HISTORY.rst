@@ -1,6 +1,14 @@
 History
 =======
 
+0.10.0: 2016-05-18
+------------------
+
+- Make it possible to receive errors without having their contents and headers
+  stripped.
+- Resolve a bug caused by passing the ``principal`` keyword argument to
+  kerberos-sspi on Windows.
+
 0.9.0: 2016-05-06
 -----------------
 
