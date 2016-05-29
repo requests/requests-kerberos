@@ -1,7 +1,7 @@
 try:
     import kerberos
 except ImportError:
-    import kerberos_sspi as kerberos
+    import winkerberos as kerberos
 import re
 import logging
 

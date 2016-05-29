@@ -12,8 +12,8 @@ try:
     import kerberos
     kerberos_module_name='kerberos'
 except ImportError:
-    import kerberos_sspi as kerberos # On Windows
-    kerberos_module_name='kerberos_sspi'
+    import winkerberos as kerberos  # On Windows
+    kerberos_module_name = 'winkerberos'
 
 import requests_kerberos
 import unittest
