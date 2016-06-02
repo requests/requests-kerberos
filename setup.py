@@ -51,7 +51,7 @@ setup(
         'requests>=1.1.0',
     ],
     extras_require={
-        ':sys_platform=="win32"': ['winkerberos>=0.3.0'],
+        ':sys_platform=="win32"': ['winkerberos>=0.4.0'],
         ':sys_platform!="win32"': ['pykerberos>=1.1.8,<2.0.0'],
     },
     test_suite='test_requests_kerberos',
