@@ -1,6 +1,12 @@
 History
 =======
 
+0.11.0: 2016-11-02
+------------------
+
+- Switch dependency on Windows from kerberos-sspi/pywin32 to WinKerberos.
+  This brings Custom Principal support to Windows users.
+
 0.10.0: 2016-05-18
 ------------------
 
