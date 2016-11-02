@@ -121,7 +121,7 @@ whom you last ran ``kinit`` or ``kswitch``, or an SSO credential if
 applicable). However, an explicit principal can be specified, which will
 cause Kerberos to look for a matching credential cache for the named user.
 This feature depends on OS support for collection-type credential caches,
-as well as working principal support in pykerberos (it is broken in many
+as well as working principal support in PyKerberos (it is broken in many
 builds). An explicit principal can be specified with the ``principal`` arg:
 
 .. code-block:: python
@@ -131,10 +131,10 @@ builds). An explicit principal can be specified with the ``principal`` arg:
     >>> kerberos_auth = HTTPKerberosAuth(principal="user@REALM")
     >>> r = requests.get("http://example.org", auth=kerberos_auth)
     ...
-    
-**Windows users:** Explicit Principal is currently not supported when using 
-``kerberos-sspi``. Providing a value for ``principal`` in this scenario will raise
-``NotImplementedError``.
+
+On Windows, WinKerberos is used instead of PyKerberos. WinKerberos allows the
+use of arbitrary principals instead of a credential cache. Passwords can be
+specified by following the form ``user@realm:password`` for ``principal``.
 
 Logging
 -------
