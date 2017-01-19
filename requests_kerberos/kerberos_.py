@@ -79,14 +79,14 @@ def _negotiate_value(response):
     return None
 
 
-class HTTPKerberosAuth(AuthBase):
+class HTTPGSSAPIAuthBase(AuthBase):
     """Attaches HTTP GSSAPI/Kerberos Authentication to the given Request
     object."""
     def __init__(
-            self, mutual_authentication=REQUIRED,
-            service="HTTP", delegate=False, force_preemptive=False,
-            principal=None, hostname_override=None, sanitize_mutual_error_response=True):
+            self, mech_oid, mutual_authentication, service, delegate, force_preemptive,
+            principal, hostname_override, sanitize_mutual_error_response):
         self.context = {}
+        self.mech_oid = mech_oid
         self.mutual_authentication = mutual_authentication
         self.delegate = delegate
         self.pos = None
@@ -120,7 +120,7 @@ class HTTPKerberosAuth(AuthBase):
             kerb_spn = "{0}@{1}".format(self.service, kerb_host)
 
             result, self.context[host] = kerberos.authGSSClientInit(kerb_spn,
-                gssflags=gssflags, principal=self.principal)
+                gssflags=gssflags, principal=self.principal, mech_oid=self.mech_oid)
 
             if result < 1:
                 raise EnvironmentError(result, kerb_stage)
@@ -321,3 +321,25 @@ class HTTPKerberosAuth(AuthBase):
             # None.
             self.pos = None
         return request
+
+class HTTPKerberosAuth(HTTPGSSAPIAuthBase):
+    """Attaches HTTP GSSAPI/Kerberos Authentication to the given Request
+    object."""
+    def __init__(
+            self, mutual_authentication=REQUIRED,
+            service="HTTP", delegate=False, force_preemptive=False,
+            principal=None, hostname_override=None, sanitize_mutual_error_response=True):
+        HTTPGSSAPIAuthBase.__init__(self, kerberos.GSS_MECH_OID_KRB5, mutual_authentication,
+                                    service, delegate, force_preemptive, principal, hostname_override,
+                                    sanitize_mutual_error_response)
+
+class HTTPSpnegoAuth(HTTPGSSAPIAuthBase):
+    """Attaches HTTP GSSAPI/Spnego Authentication to the given Request
+    object."""
+    def __init__(
+            self, mutual_authentication=REQUIRED,
+            service="HTTP", delegate=False, force_preemptive=False,
+            principal=None, hostname_override=None, sanitize_mutual_error_response=True):
+        HTTPGSSAPIAuthBase.__init__(self, kerberos.GSS_MECH_OID_SPNEGO, mutual_authentication,
+                                    service, delegate, force_preemptive, principal, hostname_override,
+                                    sanitize_mutual_error_response)

@@ -120,6 +120,7 @@ class KerberosTestCase(unittest.TestCase):
                 gssflags=(
                     kerberos.GSS_C_MUTUAL_FLAG |
                     kerberos.GSS_C_SEQUENCE_FLAG),
+                mech_oid=kerberos.GSS_MECH_OID_KRB5,
                 principal=None)
             clientStep_continue.assert_called_with("CTX", "token")
             clientResponse.assert_called_with("CTX")
@@ -142,6 +143,7 @@ class KerberosTestCase(unittest.TestCase):
                 gssflags=(
                     kerberos.GSS_C_MUTUAL_FLAG |
                     kerberos.GSS_C_SEQUENCE_FLAG),
+                mech_oid=kerberos.GSS_MECH_OID_KRB5,
                 principal=None)
             self.assertFalse(clientStep_continue.called)
             self.assertFalse(clientResponse.called)
@@ -164,6 +166,7 @@ class KerberosTestCase(unittest.TestCase):
                 gssflags=(
                     kerberos.GSS_C_MUTUAL_FLAG |
                     kerberos.GSS_C_SEQUENCE_FLAG),
+                mech_oid=kerberos.GSS_MECH_OID_KRB5,
                 principal=None)
             clientStep_error.assert_called_with("CTX", "token")
             self.assertFalse(clientResponse.called)
@@ -209,6 +212,7 @@ class KerberosTestCase(unittest.TestCase):
                 gssflags=(
                     kerberos.GSS_C_MUTUAL_FLAG |
                     kerberos.GSS_C_SEQUENCE_FLAG),
+                mech_oid=kerberos.GSS_MECH_OID_KRB5,
                 principal=None)
             clientStep_continue.assert_called_with("CTX", "token")
             clientResponse.assert_called_with("CTX")
@@ -254,6 +258,7 @@ class KerberosTestCase(unittest.TestCase):
                 gssflags=(
                     kerberos.GSS_C_MUTUAL_FLAG |
                     kerberos.GSS_C_SEQUENCE_FLAG),
+                mech_oid=kerberos.GSS_MECH_OID_KRB5,
                 principal=None)
             clientStep_continue.assert_called_with("CTX", "token")
             clientResponse.assert_called_with("CTX")
@@ -495,6 +500,7 @@ class KerberosTestCase(unittest.TestCase):
                 gssflags=(
                     kerberos.GSS_C_MUTUAL_FLAG |
                     kerberos.GSS_C_SEQUENCE_FLAG),
+                mech_oid=kerberos.GSS_MECH_OID_KRB5,
                 principal=None)
             clientStep_continue.assert_called_with("CTX", "token")
             clientResponse.assert_called_with("CTX")
@@ -545,6 +551,7 @@ class KerberosTestCase(unittest.TestCase):
                 gssflags=(
                     kerberos.GSS_C_MUTUAL_FLAG |
                     kerberos.GSS_C_SEQUENCE_FLAG),
+                mech_oid=kerberos.GSS_MECH_OID_KRB5,
                 principal=None)
             clientStep_continue.assert_called_with("CTX", "token")
             clientResponse.assert_called_with("CTX")
@@ -565,6 +572,7 @@ class KerberosTestCase(unittest.TestCase):
                 gssflags=(
                     kerberos.GSS_C_MUTUAL_FLAG |
                     kerberos.GSS_C_SEQUENCE_FLAG),
+                mech_oid=kerberos.GSS_MECH_OID_KRB5,
                 principal=None)
 
     def test_delegation(self):
@@ -609,6 +617,7 @@ class KerberosTestCase(unittest.TestCase):
                     kerberos.GSS_C_MUTUAL_FLAG |
                     kerberos.GSS_C_SEQUENCE_FLAG |
                     kerberos.GSS_C_DELEG_FLAG),
+                mech_oid=kerberos.GSS_MECH_OID_KRB5,
                 principal=None
                 )
             clientStep_continue.assert_called_with("CTX", "token")
@@ -630,6 +639,7 @@ class KerberosTestCase(unittest.TestCase):
                 gssflags=(
                     kerberos.GSS_C_MUTUAL_FLAG |
                     kerberos.GSS_C_SEQUENCE_FLAG),
+                mech_oid=kerberos.GSS_MECH_OID_KRB5,
                 principal="user@REALM")
 
     def test_realm_override(self):
@@ -648,6 +658,7 @@ class KerberosTestCase(unittest.TestCase):
                 gssflags=(
                     kerberos.GSS_C_MUTUAL_FLAG |
                     kerberos.GSS_C_SEQUENCE_FLAG),
+                mech_oid=kerberos.GSS_MECH_OID_KRB5,
                 principal=None)
 
 

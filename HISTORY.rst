@@ -1,6 +1,12 @@
 History
 =======
 
+0.12.0: 2017-01-19
+------------------
+
+- Switched to WinKerberos 0.6.0 and implemented support for SPNEGO authentication
+  (just an additional parameter to a kerberos/winkerberos function call).
+
 0.11.0: 2016-11-02
 ------------------
 
