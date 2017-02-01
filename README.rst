@@ -136,6 +136,23 @@ On Windows, WinKerberos is used instead of PyKerberos. WinKerberos allows the
 use of arbitrary principals instead of a credential cache. Passwords can be
 specified by following the form ``user@realm:password`` for ``principal``.
 
+Delegation
+----------
+
+``requests_kerberos`` supports credential delegation (``GSS_C_DELEG_FLAG``).
+To enable delegation of credentials to a server that requests delegation, pass
+``delegate=True`` to ``HTTPKerberosAuth``:
+
+.. code-block:: python
+
+    >>> import requests
+    >>> from requests_kerberos import HTTPKerberosAuth
+    >>> r = requests.get("http://example.org", auth=HTTPKerberosAuth(delegate=True))
+    ...
+
+Be careful to only allow delegation to servers you trust as they will be able
+to impersonate you using the delegated credentials.
+
 Logging
 -------
 
