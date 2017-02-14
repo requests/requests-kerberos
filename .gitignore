@@ -4,5 +4,4 @@ env/
 build/
 dist/
 requests_kerberos.egg-info/
-.idea
 

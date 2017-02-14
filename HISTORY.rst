@@ -1,7 +1,7 @@
 History
 =======
 
-0.12.0: 2017-01-19
+0.12.0: 2017-02-14
 ------------------
 
 - Switched to PyKerberos 1.1.14 and WinKerberos 0.6.0, implemented support for SPNEGO authentication
