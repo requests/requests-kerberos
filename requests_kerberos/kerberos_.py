@@ -334,7 +334,7 @@ class HTTPKerberosAuth(HTTPGSSAPIAuthBase):
                                     sanitize_mutual_error_response)
 
 class HTTPSpnegoAuth(HTTPGSSAPIAuthBase):
-    """Attaches HTTP GSSAPI/Spnego Authentication to the given Request
+    """Attaches HTTP GSSAPI/SPNEGO Authentication to the given Request
     object."""
     def __init__(
             self, mutual_authentication=REQUIRED,
