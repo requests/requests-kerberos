@@ -3,3 +3,4 @@ include README.rst
 include LICENSE
 include HISTORY.rst
 include AUTHORS
+include test_requests_kerberos.py
