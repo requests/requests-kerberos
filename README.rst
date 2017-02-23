@@ -1,6 +1,10 @@
 requests Kerberos/GSSAPI authentication library
 ===============================================
 
+.. image:: https://badges.gitter.im/Join%20Chat.svg
+   :alt: Join the chat at https://gitter.im/requests/requests-kerberos
+   :target: https://gitter.im/requests/requests-kerberos?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
+
 Requests is an HTTP library, written in Python, for human beings. This library
 adds optional Kerberos/GSSAPI authentication support and supports mutual
 authentication. Basic GET usage:
