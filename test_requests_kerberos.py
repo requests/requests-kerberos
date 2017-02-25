@@ -125,6 +125,28 @@ class KerberosTestCase(unittest.TestCase):
             clientStep_continue.assert_called_with("CTX", "token")
             clientResponse.assert_called_with("CTX")
 
+    def test_passes_correct_mech_oid(self):
+        with patch.multiple(kerberos_module_name,
+                            authGSSClientInit=clientInit_complete,
+                            authGSSClientResponse=clientResponse,
+                            authGSSClientStep=clientStep_continue):
+            response = requests.Response() #a response
+            host = 'a host'                 
+
+            auth = requests_kerberos.HTTPKerberosAuth()
+            auth.generate_request_header(response, host)
+            self.assertEqual(
+                clientInit_complete.call_args[1]['mech_oid'],
+                kerberos.GSS_MECH_OID_KRB5
+            )
+
+            auth = requests_kerberos.HTTPSpnegoAuth()
+            auth.generate_request_header(response, host)
+            self.assertEqual(
+                clientInit_complete.call_args[1]['mech_oid'],
+                kerberos.GSS_MECH_OID_SPNEGO
+            )
+
     def test_generate_request_header_init_error(self):
         with patch.multiple(kerberos_module_name,
                             authGSSClientInit=clientInit_error,
