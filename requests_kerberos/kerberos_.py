@@ -2,14 +2,19 @@ try:
     import kerberos
 except ImportError:
     import winkerberos as kerberos
-import re
+import base64
+import hashlib
 import logging
+import re
+import sys
+import warnings
 
 from requests.auth import AuthBase
 from requests.models import Response
 from requests.compat import urlparse, StringIO
 from requests.structures import CaseInsensitiveDict
 from requests.cookies import cookiejar_from_dict
+from requests.packages.urllib3.response import HTTPResponse
 
 from .exceptions import MutualAuthenticationError, KerberosExchangeError
 
@@ -29,6 +34,11 @@ log = logging.getLogger(__name__)
 REQUIRED = 1
 OPTIONAL = 2
 DISABLED = 3
+
+
+class NoCertificateRetrievedWarning(Warning):
+    pass
+
 
 class SanitizedResponse(Response):
     """The :class:`Response <Response>` object, which contains a server's
@@ -79,6 +89,45 @@ def _negotiate_value(response):
     return None
 
 
+def _get_channel_bindings_application_data(response):
+    """
+    https://tools.ietf.org/html/rfc5929 4. The 'tls-server-end-point' Channel Binding Type
+
+    Gets the application_data value for the 'tls-server-end-point' CBT Type.
+    This is ultimately the SHA256 hash of the certificate of the HTTPS endpoint
+    appended onto tls-server-end-point. This value is then passed along to the
+    kerberos library to bind to the auth response. If the socket is not an SSL
+    socket or the raw HTTP object is not a urllib3 HTTPResponse then None will
+    be returned and the Kerberos auth will use GSS_C_NO_CHANNEL_BINDINGS
+
+    :param response: The original 401 response from the server
+    :return: byte string used on the application_data.value field on the CBT struct
+    """
+    application_data = None
+    raw_response = response.raw
+
+    if isinstance(raw_response, HTTPResponse):
+        if sys.version_info > (3, 0):
+            socket = raw_response._fp.fp.raw._sock
+        else:
+            socket = raw_response._fp.fp._sock
+
+        try:
+            server_certificate = socket.getpeercert(True)
+        except AttributeError:
+            pass
+        else:
+            hash_object = hashlib.sha256(server_certificate)
+            certificate_hash = hash_object.hexdigest().upper()
+            certificate_digest = base64.b16decode(certificate_hash)
+            application_data = b'tls-server-end-point:{0}'.format(certificate_digest)
+    else:
+        warnings.warn("Requests is running with a non urllib3 backend, cannot retrieve server certificate for CBT",
+                      NoCertificateRetrievedWarning)
+
+    return application_data
+
+
 class HTTPKerberosAuth(AuthBase):
     """Attaches HTTP GSSAPI/Kerberos Authentication to the given Request
     object."""
@@ -97,6 +146,11 @@ class HTTPKerberosAuth(AuthBase):
         self.sanitize_mutual_error_response = sanitize_mutual_error_response
         self.auth_done = False
         self.winrm_encryption_available = hasattr(kerberos, 'authGSSWinRMEncryptMessage')
+
+        # Set the CBT values populated after the first response
+        self.cbt_binding_tried = False
+        self.cbt_application_data = None
+        self.cbt_struct = None
 
     def generate_request_header(self, response, host, is_preemptive=False):
         """
@@ -132,8 +186,14 @@ class HTTPKerberosAuth(AuthBase):
             negotiate_resp_value = '' if is_preemptive else _negotiate_value(response)
 
             kerb_stage = "authGSSClientStep()"
-            result = kerberos.authGSSClientStep(self.context[host],
-                                                negotiate_resp_value)
+            # If this is set pass along the struct to Kerberos
+            if self.cbt_struct:
+                result = kerberos.authGSSClientStep(self.context[host],
+                                                    negotiate_resp_value,
+                                                    input_chan_bindings=self.cbt_struct)
+            else:
+                result = kerberos.authGSSClientStep(self.context[host],
+                                                    negotiate_resp_value)
 
             if result < 0:
                 raise EnvironmentError(result, kerb_stage)
@@ -257,8 +317,14 @@ class HTTPKerberosAuth(AuthBase):
         host = urlparse(response.url).hostname
 
         try:
-            result = kerberos.authGSSClientStep(self.context[host],
-                                                _negotiate_value(response))
+            # If this is set pass along the struct to Kerberos
+            if self.cbt_struct:
+                result = kerberos.authGSSClientStep(self.context[host],
+                                                    _negotiate_value(response),
+                                                    input_chan_bindings=self.cbt_struct)
+            else:
+                result = kerberos.authGSSClientStep(self.context[host],
+                                                    _negotiate_value(response))
         except kerberos.GSSError:
             log.exception("authenticate_server(): authGSSClientStep() failed:")
             return False
@@ -274,6 +340,20 @@ class HTTPKerberosAuth(AuthBase):
     def handle_response(self, response, **kwargs):
         """Takes the given response and tries kerberos-auth, as needed."""
         num_401s = kwargs.pop('num_401s', 0)
+
+        # Check if we have already tried to get the CBT data value
+        if not self.cbt_binding_tried:
+            # If we haven't tried, try getting it now
+            self.cbt_application_data = _get_channel_bindings_application_data(response)
+            if self.cbt_application_data:
+                # Only the latest version of pykerberos has this method available
+                try:
+                    self.cbt_struct = kerberos.buildChannelBindingsStruct(application_data=self.cbt_application_data)
+                except AttributeError:
+                    # Using older version set to None
+                    self.cbt_struct = None
+            # Regardless of the result, set tried to True so we don't waste time next time
+            self.cbt_binding_tried = True
 
         if self.pos is not None:
             # Rewind the file position indicator of the body to where
