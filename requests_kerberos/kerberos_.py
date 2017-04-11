@@ -120,7 +120,7 @@ def _get_channel_bindings_application_data(response):
             hash_object = hashlib.sha256(server_certificate)
             certificate_hash = hash_object.hexdigest().upper()
             certificate_digest = base64.b16decode(certificate_hash)
-            application_data = b'tls-server-end-point:{0}'.format(certificate_digest)
+            application_data = b'tls-server-end-point:%s' % certificate_digest
     else:
         warnings.warn("Requests is running with a non urllib3 backend, cannot retrieve server certificate for CBT",
                       NoCertificateRetrievedWarning)
@@ -348,7 +348,7 @@ class HTTPKerberosAuth(AuthBase):
             if self.cbt_application_data:
                 # Only the latest version of pykerberos has this method available
                 try:
-                    self.cbt_struct = kerberos.buildChannelBindingsStruct(application_data=self.cbt_application_data)
+                    (result, self.cbt_struct) = kerberos.buildChannelBindingsStruct(application_data=self.cbt_application_data)
                 except AttributeError:
                     # Using older version set to None
                     self.cbt_struct = None
