@@ -66,7 +66,7 @@ def _negotiate_value(response):
     else:
         # There's no need to re-compile this EVERY time it is called. Compile
         # it once and you won't have the performance hit of the compilation.
-        regex = re.compile('(?:.*,)*\s*Negotiate\s*([^,]*),?', re.I)
+        regex = re.compile('(?:.*,)*\s*Kerberos\s*([^,]*),?', re.I)
         _negotiate_value.regex = regex
 
     authreq = response.headers.get('www-authenticate', None)
@@ -95,6 +95,7 @@ class HTTPKerberosAuth(AuthBase):
         self.principal = principal
         self.hostname_override = hostname_override
         self.sanitize_mutual_error_response = sanitize_mutual_error_response
+        self.auth_done = False
 
     def generate_request_header(self, response, host, is_preemptive=False):
         """
@@ -139,7 +140,7 @@ class HTTPKerberosAuth(AuthBase):
             kerb_stage = "authGSSClientResponse()"
             gss_response = kerberos.authGSSClientResponse(self.context[host])
 
-            return "Negotiate {0}".format(gss_response)
+            return "Kerberos {0}".format(gss_response)
 
         except kerberos.GSSError as error:
             log.exception(
@@ -202,7 +203,7 @@ class HTTPKerberosAuth(AuthBase):
 
         log.debug("handle_other(): Handling: %d" % response.status_code)
 
-        if self.mutual_authentication in (REQUIRED, OPTIONAL):
+        if self.mutual_authentication in (REQUIRED, OPTIONAL) and not self.auth_done:
 
             is_http_error = response.status_code >= 400
 
@@ -218,6 +219,7 @@ class HTTPKerberosAuth(AuthBase):
 
                 # Authentication successful
                 log.debug("handle_other(): returning {0}".format(response))
+                self.auth_done = True
                 return response
 
             elif is_http_error or self.mutual_authentication == OPTIONAL:
@@ -299,8 +301,14 @@ class HTTPKerberosAuth(AuthBase):
         """Deregisters the response handler"""
         response.request.deregister_hook('response', self.handle_response)
 
+    def wrap(self, host, input, **kwargs):
+        return kerberos.authGSSEncryptMessage(self.context[host], input)
+
+    def unwrap(self, host, input, **kwargs):
+        return kerberos.authGSSDecryptMessage(self.context[host], input)
+
     def __call__(self, request):
-        if self.force_preemptive:
+        if self.force_preemptive and not self.auth_done:
             # add Authorization header before we receive a 401
             # by the 401 handler
             host = urlparse(request.url).hostname
