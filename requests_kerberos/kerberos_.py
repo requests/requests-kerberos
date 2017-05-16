@@ -304,8 +304,8 @@ class HTTPKerberosAuth(AuthBase):
     def wrap(self, host, input, **kwargs):
         return kerberos.authGSSEncryptMessage(self.context[host], input)
 
-    def unwrap(self, host, input, **kwargs):
-        return kerberos.authGSSDecryptMessage(self.context[host], input)
+    def unwrap(self, host, signature, message, **kwargs):
+        return kerberos.authGSSDecryptMessage(self.context[host], signature, message)
 
     def __call__(self, request):
         if self.force_preemptive and not self.auth_done:
