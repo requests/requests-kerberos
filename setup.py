@@ -49,6 +49,8 @@ setup(
     version=get_version(),
     install_requires=[
         'requests>=1.1.0',
+        'pyasn1',
+        'pyasn1-modules'
     ],
     extras_require={
         ':sys_platform=="win32"': ['winkerberos>=0.5.0'],

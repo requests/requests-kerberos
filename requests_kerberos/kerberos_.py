@@ -14,7 +14,9 @@ from requests.models import Response
 from requests.compat import urlparse, StringIO
 from requests.structures import CaseInsensitiveDict
 from requests.cookies import cookiejar_from_dict
-from requests.packages.urllib3.response import HTTPResponse
+from requests.packages.urllib3 import HTTPResponse
+from pyasn1.codec.der.decoder import decode
+from pyasn1_modules import rfc2459
 
 from .exceptions import MutualAuthenticationError, KerberosExchangeError
 
@@ -37,6 +39,9 @@ DISABLED = 3
 
 
 class NoCertificateRetrievedWarning(Warning):
+    pass
+
+class UnknownSignatureAlgorithmOID(Warning):
     pass
 
 
@@ -88,6 +93,44 @@ def _negotiate_value(response):
 
     return None
 
+def get_cbt_application_data(server_certificate):
+    # https://tools.ietf.org/html/rfc5929#section-4.1
+    # If the algorithm is MD5 or SHA1 use SHA256
+    # Otherwise use that algorithm
+    algorithm_mapping = {
+        # https://tools.ietf.org/html/rfc3279
+        # https://tools.ietf.org/html/rfc5758
+        # RSA
+        '1.2.840.113549.1.1.4': hashlib.sha256, # md5WithRSAEncryption
+        '1.2.840.113549.1.1.5': hashlib.sha256, # sha1WithRSAEncryption
+        '1.2.840.113549.1.1.11': hashlib.sha256,  # sha256WithRSAEncryption
+        '1.2.840.113549.1.1.12': hashlib.sha384,  # sha384WithRSAEncryption
+        '1.2.840.113549.1.1.13': hashlib.sha512,  # sha512WithRSAEncryption
+
+        # DSA
+        '1.2.840.10040.4.3': hashlib.sha256, # dsa-with-sha1
+
+        # ECDSA
+        '1.2.840.10045.4.1': hashlib.sha256, # ecdsa-with-sha1
+        '1.2.840.10045.4.3.2': hashlib.sha256, # ecdsa-with-sha256
+        '1.2.840.10045.4.3.3': hashlib.sha384, # ecdsa-with-sha384
+        '1.2.840.10045.4.3.4': hashlib.sha512, # ecdsa-with-sha512
+    }
+
+    cert = decode(server_certificate, asn1Spec=rfc2459.Certificate())[0]
+    signatureOID = str(cert['signatureAlgorithm'][0])
+    algorithm = algorithm_mapping.get(signatureOID, None)
+    if algorithm:
+        hash_object = algorithm(server_certificate)
+        certificate_hash = hash_object.hexdigest().upper()
+        certificate_digest = base64.b16decode(certificate_hash)
+        application_data = b'tls-server-end-point:%s' % certificate_digest
+        return application_data
+    else:
+        warnings.warn("Unknown signature algorithm OID '%s', cannot bind TLS channel to credentials" % signatureOID,
+                      UnknownSignatureAlgorithmOID)
+        return None
+
 
 def _get_channel_bindings_application_data(response):
     """
@@ -117,10 +160,7 @@ def _get_channel_bindings_application_data(response):
         except AttributeError:
             pass
         else:
-            hash_object = hashlib.sha256(server_certificate)
-            certificate_hash = hash_object.hexdigest().upper()
-            certificate_digest = base64.b16decode(certificate_hash)
-            application_data = b'tls-server-end-point:%s' % certificate_digest
+            application_data = get_cbt_application_data(server_certificate)
     else:
         warnings.warn("Requests is running with a non urllib3 backend, cannot retrieve server certificate for CBT",
                       NoCertificateRetrievedWarning)
@@ -149,7 +189,6 @@ class HTTPKerberosAuth(AuthBase):
 
         # Set the CBT values populated after the first response
         self.cbt_binding_tried = False
-        self.cbt_application_data = None
         self.cbt_struct = None
 
     def generate_request_header(self, response, host, is_preemptive=False):
@@ -344,11 +383,11 @@ class HTTPKerberosAuth(AuthBase):
         # Check if we have already tried to get the CBT data value
         if not self.cbt_binding_tried:
             # If we haven't tried, try getting it now
-            self.cbt_application_data = _get_channel_bindings_application_data(response)
-            if self.cbt_application_data:
+            cbt_application_data = _get_channel_bindings_application_data(response)
+            if cbt_application_data:
                 # Only the latest version of pykerberos has this method available
                 try:
-                    (result, self.cbt_struct) = kerberos.buildChannelBindingsStruct(application_data=self.cbt_application_data)
+                    (result, self.cbt_struct) = kerberos.buildChannelBindingsStruct(application_data=cbt_application_data)
                 except AttributeError:
                     # Using older version set to None
                     self.cbt_struct = None
