@@ -229,7 +229,7 @@ class HTTPKerberosAuth(AuthBase):
             if self.cbt_struct:
                 result = kerberos.authGSSClientStep(self.context[host],
                                                     negotiate_resp_value,
-                                                    input_chan_bindings=self.cbt_struct)
+                                                    channel_bindings=self.cbt_struct)
             else:
                 result = kerberos.authGSSClientStep(self.context[host],
                                                     negotiate_resp_value)
@@ -360,7 +360,7 @@ class HTTPKerberosAuth(AuthBase):
             if self.cbt_struct:
                 result = kerberos.authGSSClientStep(self.context[host],
                                                     _negotiate_value(response),
-                                                    input_chan_bindings=self.cbt_struct)
+                                                    channel_bindings=self.cbt_struct)
             else:
                 result = kerberos.authGSSClientStep(self.context[host],
                                                     _negotiate_value(response))
@@ -387,7 +387,7 @@ class HTTPKerberosAuth(AuthBase):
             if cbt_application_data:
                 # Only the latest version of pykerberos has this method available
                 try:
-                    (result, self.cbt_struct) = kerberos.buildChannelBindingsStruct(application_data=cbt_application_data)
+                    self.cbt_struct = kerberos.channelBindings(application_data=cbt_application_data)
                 except AttributeError:
                     # Using older version set to None
                     self.cbt_struct = None
