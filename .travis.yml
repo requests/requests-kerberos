@@ -16,6 +16,9 @@ matrix:
   - env: PYENV=3.5.3
   - env: PYENV=3.6.1
 
+install:
+- pip install coveralls # Need to have coveralls installed locally for after_success to run
+
 script:
 - >
   docker run
@@ -27,7 +30,6 @@ script:
   -e KERBEROS_REALM=example.com
   ubuntu:16.04
   /bin/bash .travis.sh
-- ls -al
 
 after_success:
 - coveralls
