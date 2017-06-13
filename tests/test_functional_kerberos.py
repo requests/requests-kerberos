@@ -18,7 +18,7 @@ class KerberosFunctionalTestCase(unittest.TestCase):
         if self.url is None:
             raise unittest.SkipTest("KERBEROS_URL is not set, skipping functional tests")
 
-    def test_jordan(self):
+    def test_successful_http_call(self):
         session = requests.Session()
         session.auth = HTTPKerberosAuth(mutual_authentication=REQUIRED, principal=self.principal)
         request = requests.Request('GET', self.url)
@@ -27,6 +27,7 @@ class KerberosFunctionalTestCase(unittest.TestCase):
         response = session.send(prepared_request)
 
         assert response.status_code == 200, "HTTP response with kerberos auth did not return a 200 error code"
+        assert False
 
 if __name__ == '__main__':
     unittest.main()

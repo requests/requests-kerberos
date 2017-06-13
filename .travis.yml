@@ -16,7 +16,7 @@ matrix:
   - env: PYENV=3.5.3
   - env: PYENV=3.6.1
 
-install:
+script:
 - >
   docker run
   -v $(pwd):/app
@@ -27,6 +27,7 @@ install:
   -e KERBEROS_REALM=example.com
   ubuntu:16.04
   /bin/bash .travis.sh
+- ls -al
 
 after_success:
 - coveralls
