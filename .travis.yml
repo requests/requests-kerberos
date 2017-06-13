@@ -1,9 +1,32 @@
+sudo: required
+
 language: python
-python:
-    - "2.6"
-    - "2.7"
-    - "3.4"
+
+services:
+- docker
+
+os: linux
+dist: trusty
+
+matrix:
+  include:
+  - env: PYENV=2.7.13
+  - env: PYENV=3.3.6
+  - env: PYENV=3.4.6
+  - env: PYENV=3.5.3
+  - env: PYENV=3.6.1
 
 install:
-    - pip install .
-script: py.test test_requests_kerberos.py
+- >
+  docker run
+  -v $(pwd):/app
+  -w /app
+  -e PYENV=$PYENV
+  -e KERBEROS_USERNAME=administrator
+  -e KERBEROS_PASSWORD=Password01
+  -e KERBEROS_REALM=example.com
+  ubuntu:16.04
+  /bin/bash .travis.sh
+
+after_success:
+- coveralls
