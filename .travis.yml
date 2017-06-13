@@ -22,8 +22,8 @@ install:
 script:
 - >
   docker run
-  -v $(pwd):/$TRAVIS_BUILD_DIR
-  -w /$TRAVIS_BUILD_DIR
+  -v $(pwd):$(pwd)
+  -w $(pwd)
   -e PYENV=$PYENV
   -e KERBEROS_USERNAME=administrator
   -e KERBEROS_PASSWORD=Password01
