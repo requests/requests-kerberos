@@ -2,12 +2,15 @@ try:
     import kerberos
 except ImportError:
     import winkerberos as kerberos
-import base64
-import hashlib
 import logging
 import re
 import sys
 import warnings
+
+from cryptography import x509
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes
+from cryptography.exceptions import UnsupportedAlgorithm
 
 from requests.auth import AuthBase
 from requests.models import Response
@@ -15,8 +18,6 @@ from requests.compat import urlparse, StringIO
 from requests.structures import CaseInsensitiveDict
 from requests.cookies import cookiejar_from_dict
 from requests.packages.urllib3 import HTTPResponse
-from pyasn1.codec.der.decoder import decode
-from pyasn1_modules import rfc2459
 
 from .exceptions import MutualAuthenticationError, KerberosExchangeError
 
@@ -93,43 +94,30 @@ def _negotiate_value(response):
 
     return None
 
-def get_cbt_application_data(server_certificate):
+
+def _get_certificate_hash(certificate_der):
     # https://tools.ietf.org/html/rfc5929#section-4.1
-    # If the algorithm is MD5 or SHA1 use SHA256
-    # Otherwise use that algorithm
-    algorithm_mapping = {
-        # https://tools.ietf.org/html/rfc3279
-        # https://tools.ietf.org/html/rfc5758
-        # RSA
-        '1.2.840.113549.1.1.4': hashlib.sha256, # md5WithRSAEncryption
-        '1.2.840.113549.1.1.5': hashlib.sha256, # sha1WithRSAEncryption
-        '1.2.840.113549.1.1.11': hashlib.sha256,  # sha256WithRSAEncryption
-        '1.2.840.113549.1.1.12': hashlib.sha384,  # sha384WithRSAEncryption
-        '1.2.840.113549.1.1.13': hashlib.sha512,  # sha512WithRSAEncryption
+    cert = x509.load_der_x509_certificate(certificate_der, default_backend())
 
-        # DSA
-        '1.2.840.10040.4.3': hashlib.sha256, # dsa-with-sha1
-
-        # ECDSA
-        '1.2.840.10045.4.1': hashlib.sha256, # ecdsa-with-sha1
-        '1.2.840.10045.4.3.2': hashlib.sha256, # ecdsa-with-sha256
-        '1.2.840.10045.4.3.3': hashlib.sha384, # ecdsa-with-sha384
-        '1.2.840.10045.4.3.4': hashlib.sha512, # ecdsa-with-sha512
-    }
-
-    cert = decode(server_certificate, asn1Spec=rfc2459.Certificate())[0]
-    signatureOID = str(cert['signatureAlgorithm'][0])
-    algorithm = algorithm_mapping.get(signatureOID, None)
-    if algorithm:
-        hash_object = algorithm(server_certificate)
-        certificate_hash = hash_object.hexdigest().upper()
-        certificate_digest = base64.b16decode(certificate_hash)
-        application_data = b'tls-server-end-point:%s' % certificate_digest
-        return application_data
-    else:
-        warnings.warn("Unknown signature algorithm OID '%s', cannot bind TLS channel to credentials" % signatureOID,
-                      UnknownSignatureAlgorithmOID)
+    try:
+        hash_algorithm = cert.signature_hash_algorithm
+    except UnsupportedAlgorithm as ex:
+        warnings.warn("Failed to get signature algorithm from certificate, "
+                      "unable to pass channel bindings: %s" % str(ex), UnknownSignatureAlgorithmOID)
         return None
+
+    # if the cert signature algorithm is either md5 or sha1 then use sha256
+    # otherwise use the signature algorithm
+    if hash_algorithm.name in ['md5', 'sha1']:
+        digest = hashes.Hash(hashes.SHA256(), default_backend())
+    else:
+        digest = hashes.Hash(hash_algorithm, default_backend())
+
+    digest.update(certificate_der)
+    certificate_hash = digest.finalize()
+    #certificate_hash = binascii.hexlify(certificate_hash_bytes).decode().upper()
+
+    return certificate_hash
 
 
 def _get_channel_bindings_application_data(response):
@@ -146,6 +134,7 @@ def _get_channel_bindings_application_data(response):
     :param response: The original 401 response from the server
     :return: byte string used on the application_data.value field on the CBT struct
     """
+
     application_data = None
     raw_response = response.raw
 
@@ -160,13 +149,15 @@ def _get_channel_bindings_application_data(response):
         except AttributeError:
             pass
         else:
-            application_data = get_cbt_application_data(server_certificate)
+            certificate_hash = _get_certificate_hash(server_certificate)
+            application_data = b'tls-server-end-point:' + certificate_hash
     else:
-        warnings.warn("Requests is running with a non urllib3 backend, cannot retrieve server certificate for CBT",
-                      NoCertificateRetrievedWarning)
+        warnings.warn(
+            "Requests is running with a non urllib3 backend, cannot retrieve server certificate for CBT",
+            NoCertificateRetrievedWarning)
 
+    application_data = None
     return application_data
-
 
 class HTTPKerberosAuth(AuthBase):
     """Attaches HTTP GSSAPI/Kerberos Authentication to the given Request
@@ -174,7 +165,8 @@ class HTTPKerberosAuth(AuthBase):
     def __init__(
             self, mutual_authentication=REQUIRED,
             service="HTTP", delegate=False, force_preemptive=False,
-            principal=None, hostname_override=None, sanitize_mutual_error_response=True):
+            principal=None, hostname_override=None,
+            sanitize_mutual_error_response=True, send_cbt=True):
         self.context = {}
         self.mutual_authentication = mutual_authentication
         self.delegate = delegate
@@ -188,6 +180,7 @@ class HTTPKerberosAuth(AuthBase):
         self.winrm_encryption_available = hasattr(kerberos, 'authGSSWinRMEncryptMessage')
 
         # Set the CBT values populated after the first response
+        self.send_cbt = send_cbt
         self.cbt_binding_tried = False
         self.cbt_struct = None
 
@@ -381,7 +374,7 @@ class HTTPKerberosAuth(AuthBase):
         num_401s = kwargs.pop('num_401s', 0)
 
         # Check if we have already tried to get the CBT data value
-        if not self.cbt_binding_tried:
+        if not self.cbt_binding_tried and self.send_cbt:
             # If we haven't tried, try getting it now
             cbt_application_data = _get_channel_bindings_application_data(response)
             if cbt_application_data:
