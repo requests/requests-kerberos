@@ -115,7 +115,6 @@ def _get_certificate_hash(certificate_der):
 
     digest.update(certificate_der)
     certificate_hash = digest.finalize()
-    #certificate_hash = binascii.hexlify(certificate_hash_bytes).decode().upper()
 
     return certificate_hash
 
@@ -156,7 +155,6 @@ def _get_channel_bindings_application_data(response):
             "Requests is running with a non urllib3 backend, cannot retrieve server certificate for CBT",
             NoCertificateRetrievedWarning)
 
-    application_data = None
     return application_data
 
 class HTTPKerberosAuth(AuthBase):
