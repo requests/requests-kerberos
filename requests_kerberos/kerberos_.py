@@ -232,7 +232,7 @@ class HTTPKerberosAuth(AuthBase):
                     return response
             else:
                 # Unable to attempt mutual authentication when mutual auth is
-                # required, raise an exception so the user doesnt use an
+                # required, raise an exception so the user doesn't use an
                 # untrusted response.
                 log.error("handle_other(): Mutual authentication failed")
                 raise MutualAuthenticationError("Unable to authenticate "
