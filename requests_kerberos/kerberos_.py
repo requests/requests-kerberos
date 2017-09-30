@@ -66,7 +66,7 @@ def _negotiate_value(response):
     else:
         # There's no need to re-compile this EVERY time it is called. Compile
         # it once and you won't have the performance hit of the compilation.
-        regex = re.compile('(?:.*,)*\s*Kerberos\s*([^,]*),?', re.I)
+        regex = re.compile('(?:.*,)*\s*Negotiate\s*([^,]*),?', re.I)
         _negotiate_value.regex = regex
 
     authreq = response.headers.get('www-authenticate', None)
@@ -140,7 +140,7 @@ class HTTPKerberosAuth(AuthBase):
             kerb_stage = "authGSSClientResponse()"
             gss_response = kerberos.authGSSClientResponse(self.context[host])
 
-            return "Kerberos {0}".format(gss_response)
+            return "Negotiate {0}".format(gss_response)
 
         except kerberos.GSSError as error:
             log.exception(
@@ -300,12 +300,6 @@ class HTTPKerberosAuth(AuthBase):
     def deregister(self, response):
         """Deregisters the response handler"""
         response.request.deregister_hook('response', self.handle_response)
-
-    def wrap(self, host, input, **kwargs):
-        return kerberos.authGSSEncryptMessage(self.context[host], input)
-
-    def unwrap(self, host, signature, message, **kwargs):
-        return kerberos.authGSSDecryptMessage(self.context[host], signature, message)
 
     def __call__(self, request):
         if self.force_preemptive and not self.auth_done:
