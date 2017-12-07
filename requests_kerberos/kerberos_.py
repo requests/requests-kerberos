@@ -96,6 +96,7 @@ class HTTPKerberosAuth(AuthBase):
         self.hostname_override = hostname_override
         self.sanitize_mutual_error_response = sanitize_mutual_error_response
         self.auth_done = False
+        self.winrm_encryption_available = hasattr(kerberos, 'authGSSWinRMEncryptMessage')
 
     def generate_request_header(self, response, host, is_preemptive=False):
         """
@@ -300,6 +301,18 @@ class HTTPKerberosAuth(AuthBase):
     def deregister(self, response):
         """Deregisters the response handler"""
         response.request.deregister_hook('response', self.handle_response)
+
+    def wrap_winrm(self, host, message):
+        if not self.winrm_encryption_available:
+            raise NotImplementedError("WinRM encryption is not available on the installed version of pykerberos")
+
+        return kerberos.authGSSWinRMEncryptMessage(self.context[host], message)
+
+    def unwrap_winrm(self, host, message, header):
+        if not self.winrm_encryption_available:
+            raise NotImplementedError("WinRM encryption is not available on the installed version of pykerberos")
+
+        return kerberos.authGSSWinRMDecryptMessage(self.context[host], message, header)
 
     def __call__(self, request):
         if self.force_preemptive and not self.auth_done:

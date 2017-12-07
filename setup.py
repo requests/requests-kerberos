@@ -52,7 +52,7 @@ setup(
     ],
     extras_require={
         ':sys_platform=="win32"': ['winkerberos>=0.5.0'],
-        ':sys_platform!="win32"': ['kerberos>=1.3.0a1'],
+        ':sys_platform!="win32"': ['pykerberos>=1.2.1dev0'],
     },
     test_suite='test_requests_kerberos',
     tests_require=['mock'],
