@@ -138,18 +138,22 @@ def _get_channel_bindings_application_data(response):
     raw_response = response.raw
 
     if isinstance(raw_response, HTTPResponse):
-        if sys.version_info > (3, 0):
-            socket = raw_response._fp.fp.raw._sock
-        else:
-            socket = raw_response._fp.fp._sock
-
         try:
-            server_certificate = socket.getpeercert(True)
+            if sys.version_info > (3, 0):
+                socket = raw_response._fp.fp.raw._sock
+            else:
+                socket = raw_response._fp.fp._sock
         except AttributeError:
-            pass
+            warnings.warn("Failed to get raw socket for CBT; has urllib3 impl changed",
+                          NoCertificateRetrievedWarning)
         else:
-            certificate_hash = _get_certificate_hash(server_certificate)
-            application_data = b'tls-server-end-point:' + certificate_hash
+            try:
+                server_certificate = socket.getpeercert(True)
+            except AttributeError:
+                pass
+            else:
+                certificate_hash = _get_certificate_hash(server_certificate)
+                application_data = b'tls-server-end-point:' + certificate_hash
     else:
         warnings.warn(
             "Requests is running with a non urllib3 backend, cannot retrieve server certificate for CBT",
