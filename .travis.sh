@@ -135,10 +135,12 @@ echo "Running make install on Python"
 make install &> /dev/null
 cd ..
 rm -rf "Python-$PYENV"
+rm "Python-$PYENV.tgz"
 
 echo "Installing Pip"
 wget -q https://bootstrap.pypa.io/get-pip.py
 python$PY_MAJOR get-pip.py
+rm get-pip.py
 
 echo "Updating pip and installing library"
 pip$PY_MAJOR install -U pip setuptools

@@ -49,7 +49,8 @@ setup(
     version=get_version(),
     install_requires=[
         'requests>=1.1.0',
-        'cryptography>=1.3'
+        'cryptography>=1.3;python_version!="3.3"',
+        'cryptography>=1.3,<2;python_version=="3.3"'
     ],
     extras_require={
         ':sys_platform=="win32"': ['winkerberos>=0.5.0'],
