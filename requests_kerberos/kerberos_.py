@@ -2,14 +2,22 @@ try:
     import kerberos
 except ImportError:
     import winkerberos as kerberos
-import re
 import logging
+import re
+import sys
+import warnings
+
+from cryptography import x509
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes
+from cryptography.exceptions import UnsupportedAlgorithm
 
 from requests.auth import AuthBase
 from requests.models import Response
 from requests.compat import urlparse, StringIO
 from requests.structures import CaseInsensitiveDict
 from requests.cookies import cookiejar_from_dict
+from requests.packages.urllib3 import HTTPResponse
 
 from .exceptions import MutualAuthenticationError, KerberosExchangeError
 
@@ -29,6 +37,14 @@ log = logging.getLogger(__name__)
 REQUIRED = 1
 OPTIONAL = 2
 DISABLED = 3
+
+
+class NoCertificateRetrievedWarning(Warning):
+    pass
+
+class UnknownSignatureAlgorithmOID(Warning):
+    pass
+
 
 class SanitizedResponse(Response):
     """The :class:`Response <Response>` object, which contains a server's
@@ -79,13 +95,80 @@ def _negotiate_value(response):
     return None
 
 
+def _get_certificate_hash(certificate_der):
+    # https://tools.ietf.org/html/rfc5929#section-4.1
+    cert = x509.load_der_x509_certificate(certificate_der, default_backend())
+
+    try:
+        hash_algorithm = cert.signature_hash_algorithm
+    except UnsupportedAlgorithm as ex:
+        warnings.warn("Failed to get signature algorithm from certificate, "
+                      "unable to pass channel bindings: %s" % str(ex), UnknownSignatureAlgorithmOID)
+        return None
+
+    # if the cert signature algorithm is either md5 or sha1 then use sha256
+    # otherwise use the signature algorithm
+    if hash_algorithm.name in ['md5', 'sha1']:
+        digest = hashes.Hash(hashes.SHA256(), default_backend())
+    else:
+        digest = hashes.Hash(hash_algorithm, default_backend())
+
+    digest.update(certificate_der)
+    certificate_hash = digest.finalize()
+
+    return certificate_hash
+
+
+def _get_channel_bindings_application_data(response):
+    """
+    https://tools.ietf.org/html/rfc5929 4. The 'tls-server-end-point' Channel Binding Type
+
+    Gets the application_data value for the 'tls-server-end-point' CBT Type.
+    This is ultimately the SHA256 hash of the certificate of the HTTPS endpoint
+    appended onto tls-server-end-point. This value is then passed along to the
+    kerberos library to bind to the auth response. If the socket is not an SSL
+    socket or the raw HTTP object is not a urllib3 HTTPResponse then None will
+    be returned and the Kerberos auth will use GSS_C_NO_CHANNEL_BINDINGS
+
+    :param response: The original 401 response from the server
+    :return: byte string used on the application_data.value field on the CBT struct
+    """
+
+    application_data = None
+    raw_response = response.raw
+
+    if isinstance(raw_response, HTTPResponse):
+        try:
+            if sys.version_info > (3, 0):
+                socket = raw_response._fp.fp.raw._sock
+            else:
+                socket = raw_response._fp.fp._sock
+        except AttributeError:
+            warnings.warn("Failed to get raw socket for CBT; has urllib3 impl changed",
+                          NoCertificateRetrievedWarning)
+        else:
+            try:
+                server_certificate = socket.getpeercert(True)
+            except AttributeError:
+                pass
+            else:
+                certificate_hash = _get_certificate_hash(server_certificate)
+                application_data = b'tls-server-end-point:' + certificate_hash
+    else:
+        warnings.warn(
+            "Requests is running with a non urllib3 backend, cannot retrieve server certificate for CBT",
+            NoCertificateRetrievedWarning)
+
+    return application_data
+
 class HTTPKerberosAuth(AuthBase):
     """Attaches HTTP GSSAPI/Kerberos Authentication to the given Request
     object."""
     def __init__(
             self, mutual_authentication=REQUIRED,
             service="HTTP", delegate=False, force_preemptive=False,
-            principal=None, hostname_override=None, sanitize_mutual_error_response=True):
+            principal=None, hostname_override=None,
+            sanitize_mutual_error_response=True, send_cbt=True):
         self.context = {}
         self.mutual_authentication = mutual_authentication
         self.delegate = delegate
@@ -97,6 +180,11 @@ class HTTPKerberosAuth(AuthBase):
         self.sanitize_mutual_error_response = sanitize_mutual_error_response
         self.auth_done = False
         self.winrm_encryption_available = hasattr(kerberos, 'authGSSWinRMEncryptMessage')
+
+        # Set the CBT values populated after the first response
+        self.send_cbt = send_cbt
+        self.cbt_binding_tried = False
+        self.cbt_struct = None
 
     def generate_request_header(self, response, host, is_preemptive=False):
         """
@@ -132,8 +220,14 @@ class HTTPKerberosAuth(AuthBase):
             negotiate_resp_value = '' if is_preemptive else _negotiate_value(response)
 
             kerb_stage = "authGSSClientStep()"
-            result = kerberos.authGSSClientStep(self.context[host],
-                                                negotiate_resp_value)
+            # If this is set pass along the struct to Kerberos
+            if self.cbt_struct:
+                result = kerberos.authGSSClientStep(self.context[host],
+                                                    negotiate_resp_value,
+                                                    channel_bindings=self.cbt_struct)
+            else:
+                result = kerberos.authGSSClientStep(self.context[host],
+                                                    negotiate_resp_value)
 
             if result < 0:
                 raise EnvironmentError(result, kerb_stage)
@@ -257,8 +351,14 @@ class HTTPKerberosAuth(AuthBase):
         host = urlparse(response.url).hostname
 
         try:
-            result = kerberos.authGSSClientStep(self.context[host],
-                                                _negotiate_value(response))
+            # If this is set pass along the struct to Kerberos
+            if self.cbt_struct:
+                result = kerberos.authGSSClientStep(self.context[host],
+                                                    _negotiate_value(response),
+                                                    channel_bindings=self.cbt_struct)
+            else:
+                result = kerberos.authGSSClientStep(self.context[host],
+                                                    _negotiate_value(response))
         except kerberos.GSSError:
             log.exception("authenticate_server(): authGSSClientStep() failed:")
             return False
@@ -274,6 +374,20 @@ class HTTPKerberosAuth(AuthBase):
     def handle_response(self, response, **kwargs):
         """Takes the given response and tries kerberos-auth, as needed."""
         num_401s = kwargs.pop('num_401s', 0)
+
+        # Check if we have already tried to get the CBT data value
+        if not self.cbt_binding_tried and self.send_cbt:
+            # If we haven't tried, try getting it now
+            cbt_application_data = _get_channel_bindings_application_data(response)
+            if cbt_application_data:
+                # Only the latest version of pykerberos has this method available
+                try:
+                    self.cbt_struct = kerberos.channelBindings(application_data=cbt_application_data)
+                except AttributeError:
+                    # Using older version set to None
+                    self.cbt_struct = None
+            # Regardless of the result, set tried to True so we don't waste time next time
+            self.cbt_binding_tried = True
 
         if self.pos is not None:
             # Rewind the file position indicator of the body to where

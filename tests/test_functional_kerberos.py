@@ -32,6 +32,9 @@ class KerberosFunctionalTestCase(unittest.TestCase):
 
     def test_successful_http_call(self):
         session = requests.Session()
+        if self.url.startswith("https://"):
+            session.verify = False
+
         session.auth = HTTPKerberosAuth(mutual_authentication=REQUIRED, principal=self.principal)
         request = requests.Request('GET', self.url)
         prepared_request = session.prepare_request(request)
