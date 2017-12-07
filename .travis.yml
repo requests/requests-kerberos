@@ -28,7 +28,7 @@ script:
   -e KERBEROS_USERNAME=administrator
   -e KERBEROS_PASSWORD=Password01
   -e KERBEROS_REALM=example.com
-  ubuntu:16.04
+  python:$PYENV
   /bin/bash .travis.sh
 
 after_success:

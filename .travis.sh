@@ -89,6 +89,17 @@ mkdir -p /var/www/example.com/public_html
 chmod -R 755 /var/www
 echo "<html><head><title>Title</title></head><body>body mesage</body></html>" > /var/www/example.com/public_html/index.html
 
+echo "Create self signed certificate for HTTPS endpoint"
+mkdir /etc/apache2/ssl
+openssl req \
+    -x509 \
+    -nodes \
+    -days 365 \
+    -newkey rsa:2048 \
+    -keyout /etc/apache2/ssl/https.key \
+    -out /etc/apache2/ssl/https.crt \
+    -subj "/CN=$KERBEROS_HOSTNAME/o=Testing LTS./C=US"
+
 echo "Create virtual host files"
 cat > /etc/apache2/sites-available/example.com.conf << EOL
 <VirtualHost *:80>
@@ -104,16 +115,33 @@ cat > /etc/apache2/sites-available/example.com.conf << EOL
         GssapiCredStore keytab:/etc/krb5.keytab
     </Directory>
 </VirtualHost>
+<VirtualHost *:443>
+    ServerName $KERBEROS_HOSTNAME
+    ServerAlias $KERBEROS_HOSTNAME
+    DocumentRoot /var/www/example.com/public_html
+    ErrorLog ${APACHE_LOG_DIR}/error.log
+    CustomLog ${APACHE_LOG_DIR}/access.log combined
+    SSLEngine on
+    SSLCertificateFile /etc/apache2/ssl/https.crt
+    SSLCertificateKeyFile /etc/apache2/ssl/https.key
+    <Directory "/var/www/example.com/public_html">
+        AuthType GSSAPI
+        AuthName "GSSAPI Single Sign On Login"
+        Require user $KERBEROS_USERNAME@${KERBEROS_REALM^^}
+        GssapiCredStore keytab:/etc/krb5.keytab
+    </Directory>
+</VirtualHost>
 EOL
 
 echo "Enabling virtual host site"
+a2enmod ssl
 a2ensite example.com.conf
 service apache2 restart
 
 echo "Getting ticket for Kerberos user"
 echo -n "$KERBEROS_PASSWORD" | kinit "$KERBEROS_USERNAME@${KERBEROS_REALM^^}"
 
-echo "Try out the curl connection"
+echo "Try out the HTTP connection with curl"
 CURL_OUTPUT=$(curl --negotiate -u : "http://$KERBEROS_HOSTNAME")
 
 if [ "$CURL_OUTPUT" != "<html><head><title>Title</title></head><body>body mesage</body></html>" ]; then
@@ -123,19 +151,15 @@ else
     echo -e "SUCCESS: Apache site built and set for Kerberos auth\nActual Output:\n$CURL_OUTPUT"
 fi
 
-echo "Downloading Python $PYENV"
-wget -q "https://www.python.org/ftp/python/$PYENV/Python-$PYENV.tgz"
-tar xzf "Python-$PYENV.tgz"
-cd "Python-$PYENV"
+echo "Try out the HTTPS connection with curl"
+CURL_OUTPUT=$(curl --negotiate -u : "https://$KERBEROS_HOSTNAME" --insecure)
 
-echo "Configuring Python install"
-./configure &> /dev/null
-
-echo "Running make install on Python"
-make install &> /dev/null
-cd ..
-rm -rf "Python-$PYENV"
-rm "Python-$PYENV.tgz"
+if [ "$CURL_OUTPUT" != "<html><head><title>Title</title></head><body>body mesage</body></html>" ]; then
+    echo -e "ERROR: Did not get success message, cannot continue with actual tests:\nActual Output:\n$CURL_OUTPUT"
+    exit 1
+else
+    echo -e "SUCCESS: Apache site built and set for Kerberos auth\nActual Output:\n$CURL_OUTPUT"
+fi
 
 echo "Installing Pip"
 wget -q https://bootstrap.pypa.io/get-pip.py
@@ -155,4 +179,8 @@ echo "Pip packages: $(pip$PY_MAJOR list)"
 echo "Running Python tests"
 export KERBEROS_PRINCIPAL="$KERBEROS_USERNAME@${KERBEROS_REALM^^}"
 export KERBEROS_URL="http://$KERBEROS_HOSTNAME"
-python$PY_MAJOR -m pytest -v --cov=requests_kerberos
+python$PY_MAJOR -m pytest -v --cov=requests_kerberos\
+
+echo "Running Python test over HTTPS for basic CBT test"
+export KERBEROS_URL="https://$KERBEROS_HOSTNAME"
+python$PY_MAJOR -m pytest -v --cov=requests_kerberos\
