@@ -161,6 +161,22 @@ else
     echo -e "SUCCESS: Apache site built and set for Kerberos auth\nActual Output:\n$CURL_OUTPUT"
 fi
 
+if [ "$IMAGE" == "ubuntu:16.04" ]; then
+    echo "Downloading Python $PYENV"
+    wget -q "https://www.python.org/ftp/python/$PYENV/Python-$PYENV.tgz"
+    tar xzf "Python-$PYENV.tgz"
+    cd "Python-$PYENV"
+
+    echo "Configuring Python install"
+    ./configure &> /dev/null
+
+    echo "Running make install on Python"
+    make install &> /dev/null
+    cd ..
+    rm -rf "Python-$PYENV"
+    rm "Python-$PYENV.tgz"
+fi
+
 echo "Installing Pip"
 wget -q https://bootstrap.pypa.io/get-pip.py
 python$PY_MAJOR get-pip.py
