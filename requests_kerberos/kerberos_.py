@@ -95,6 +95,8 @@ class HTTPKerberosAuth(AuthBase):
         self.principal = principal
         self.hostname_override = hostname_override
         self.sanitize_mutual_error_response = sanitize_mutual_error_response
+        self.auth_done = False
+        self.winrm_encryption_available = hasattr(kerberos, 'authGSSWinRMEncryptMessage')
 
     def generate_request_header(self, response, host, is_preemptive=False):
         """
@@ -202,7 +204,7 @@ class HTTPKerberosAuth(AuthBase):
 
         log.debug("handle_other(): Handling: %d" % response.status_code)
 
-        if self.mutual_authentication in (REQUIRED, OPTIONAL):
+        if self.mutual_authentication in (REQUIRED, OPTIONAL) and not self.auth_done:
 
             is_http_error = response.status_code >= 400
 
@@ -218,6 +220,7 @@ class HTTPKerberosAuth(AuthBase):
 
                 # Authentication successful
                 log.debug("handle_other(): returning {0}".format(response))
+                self.auth_done = True
                 return response
 
             elif is_http_error or self.mutual_authentication == OPTIONAL:
@@ -299,8 +302,20 @@ class HTTPKerberosAuth(AuthBase):
         """Deregisters the response handler"""
         response.request.deregister_hook('response', self.handle_response)
 
+    def wrap_winrm(self, host, message):
+        if not self.winrm_encryption_available:
+            raise NotImplementedError("WinRM encryption is not available on the installed version of pykerberos")
+
+        return kerberos.authGSSWinRMEncryptMessage(self.context[host], message)
+
+    def unwrap_winrm(self, host, message, header):
+        if not self.winrm_encryption_available:
+            raise NotImplementedError("WinRM encryption is not available on the installed version of pykerberos")
+
+        return kerberos.authGSSWinRMDecryptMessage(self.context[host], message, header)
+
     def __call__(self, request):
-        if self.force_preemptive:
+        if self.force_preemptive and not self.auth_done:
             # add Authorization header before we receive a 401
             # by the 401 handler
             host = urlparse(request.url).hostname
