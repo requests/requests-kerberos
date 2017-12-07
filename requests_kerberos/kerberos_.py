@@ -1,9 +1,8 @@
-try:
-    import kerberos
-except ImportError:
-    import winkerberos as kerberos
 import re
 import logging
+
+import gssapi
+from gssapi.exceptions import GSSError
 
 from requests.auth import AuthBase
 from requests.models import Response
@@ -108,12 +107,12 @@ class HTTPKerberosAuth(AuthBase):
         """
 
         # Flags used by kerberos module.
-        gssflags = kerberos.GSS_C_MUTUAL_FLAG | kerberos.GSS_C_SEQUENCE_FLAG
+        gssflags = [gssapi.RequirementFlag.mutual_authentication,
+                    gssapi.RequirementFlag.out_of_sequence_detection]
         if self.delegate:
-            gssflags |= kerberos.GSS_C_DELEG_FLAG
+            gssflags.append(gssapi.RequirementFlag.delegate_to_peer)
 
         try:
-            kerb_stage = "authGSSClientInit()"
             # contexts still need to be stored by host, but hostname_override
             # allows use of an arbitrary hostname for the kerberos exchange
             # (eg, in cases of aliased hosts, internal vs external, CNAMEs
@@ -121,42 +120,32 @@ class HTTPKerberosAuth(AuthBase):
             kerb_host = self.hostname_override if self.hostname_override is not None else host
             kerb_spn = "{0}@{1}".format(self.service, kerb_host)
 
-            result, self.context[host] = kerberos.authGSSClientInit(kerb_spn,
-                gssflags=gssflags, principal=self.principal)
+            creds = None
+            if self.principal:
+                gss_stage = "acquiring credentials"
+                creds = gssapi.Credentials(name=self.principal,
+                                           usage="initiate")
 
-            if result < 1:
-                raise EnvironmentError(result, kerb_stage)
+            gss_stage = "initiating context"
+            self.context[host] = gssapi.SecurityContext(
+                usage="initiate", flags=gssflags, name=gssapi.Name(kerb_spn),
+                creds=creds)
 
-            # if we have a previous response from the server, use it to continue
-            # the auth process, otherwise use an empty value
-            negotiate_resp_value = '' if is_preemptive else _negotiate_value(response)
-
-            kerb_stage = "authGSSClientStep()"
-            result = kerberos.authGSSClientStep(self.context[host],
-                                                negotiate_resp_value)
-
-            if result < 0:
-                raise EnvironmentError(result, kerb_stage)
-
-            kerb_stage = "authGSSClientResponse()"
-            gss_response = kerberos.authGSSClientResponse(self.context[host])
+            gss_stage = "stepping context"
+            if is_preemptive:
+                gss_response = self.context[host].step()
+            else:
+                gss_response = self.context[host].step(
+                    _negotiate_value(response))
 
             return "Negotiate {0}".format(gss_response)
 
-        except kerberos.GSSError as error:
+        except GSSError as error:
+            msg = error.gen_message()
             log.exception(
-                "generate_request_header(): {0} failed:".format(kerb_stage))
-            log.exception(error)
-            raise KerberosExchangeError("%s failed: %s" % (kerb_stage, str(error.args)))
-
-        except EnvironmentError as error:
-            # ensure we raised this for translation to KerberosExchangeError
-            # by comparing errno to result, re-raise if not
-            if error.errno != result:
-                raise
-            message = "{0} failed, result: {1}".format(kerb_stage, result)
-            log.error("generate_request_header(): {0}".format(message))
-            raise KerberosExchangeError(message)
+                "generate_request_header(): {0} failed:".format(gss_stage))
+            log.exception(msg)
+            raise KerberosExchangeError("%s failed: %s" % (gss_stage, msg))
 
     def authenticate_user(self, response, **kwargs):
         """Handles user authentication with gssapi/kerberos"""
@@ -257,15 +246,10 @@ class HTTPKerberosAuth(AuthBase):
         host = urlparse(response.url).hostname
 
         try:
-            result = kerberos.authGSSClientStep(self.context[host],
-                                                _negotiate_value(response))
-        except kerberos.GSSError:
-            log.exception("authenticate_server(): authGSSClientStep() failed:")
-            return False
-
-        if result < 1:
-            log.error("authenticate_server(): authGSSClientStep() failed: "
-                      "{0}".format(result))
+            result = self.context[host].step(_negotiate_value(response))
+        except GSSError as error:
+            log.exception("authenticate_server(): context stepping failed:")
+            log.exception(error.gen_message())
             return False
 
         log.debug("authenticate_server(): returning {0}".format(response))
