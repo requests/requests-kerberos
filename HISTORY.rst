@@ -1,6 +1,13 @@
 History
 =======
 
+0.12.0.beta1: 2017-12-08
+------------------------
+
+- Add support for channel binding tokens (assumes pykerberos support)
+- Add support for kerberos message encryption (assumes pykerberos support)
+- Misc CI/test fixes
+
 0.11.0: 2016-11-02
 ------------------
 
