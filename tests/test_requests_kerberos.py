@@ -8,6 +8,7 @@ from mock import Mock, patch
 from requests.compat import urlparse
 import requests
 import warnings
+import socket
 
 
 try:
@@ -652,6 +653,30 @@ class KerberosTestCase(unittest.TestCase):
                     kerberos.GSS_C_MUTUAL_FLAG |
                     kerberos.GSS_C_SEQUENCE_FLAG),
                 principal=None)
+
+    def test_realm_via_fqdn(self):
+        with patch.multiple(kerberos_module_name,
+                            authGSSClientInit=clientInit_complete,
+                            authGSSClientResponse=clientResponse,
+                            authGSSClientStep=clientStep_continue):
+            
+            getfqdn = socket.getfqdn
+            def getfqdn_mock(host):
+                return 'otherhost.otherdomain.org' if host == 'www.example.org' else getfqdn(host)
+
+            with patch.multiple('socket', getfqdn=getfqdn_mock):
+                response = requests.Response()
+                response.url = "http://www.example.org/"
+                response.headers = {'www-authenticate': 'negotiate token'}
+                host = urlparse(response.url).hostname
+                auth = requests_kerberos.HTTPKerberosAuth()
+                auth.generate_request_header(response, host)
+                clientInit_complete.assert_called_with(
+                    "HTTP@otherhost.otherdomain.org",
+                    gssflags=(
+                        kerberos.GSS_C_MUTUAL_FLAG |
+                        kerberos.GSS_C_SEQUENCE_FLAG),
+                    principal=None)
 
 
 class TestCertificateHash(unittest.TestCase):

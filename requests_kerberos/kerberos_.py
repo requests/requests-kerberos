@@ -3,6 +3,7 @@ try:
 except ImportError:
     import winkerberos as kerberos
 import logging
+import socket
 import re
 import sys
 import warnings
@@ -206,7 +207,16 @@ class HTTPKerberosAuth(AuthBase):
             # allows use of an arbitrary hostname for the kerberos exchange
             # (eg, in cases of aliased hosts, internal vs external, CNAMEs
             # w/ name-based HTTP hosting)
-            kerb_host = self.hostname_override if self.hostname_override is not None else host
+            if self.hostname_override is not None:
+                kerb_host = self.hostname_override
+            else:
+                # We should use the FQDN. This is necessary to support use
+                # cases where multiple services are hosted on the same machine
+                # under multiple CNAMEs. It won't do any good to use a SPN that
+                # mentions one of the CNAMES, we need to ask for the real machine.
+                #
+                # https://chromium.googlesource.com/chromium/src/+/lkgr/net/http/http_auth_handler_negotiate.cc#150
+                kerb_host = socket.getfqdn(host)
             kerb_spn = "{0}@{1}".format(self.service, kerb_host)
 
             result, self.context[host] = kerberos.authGSSClientInit(kerb_spn,
