@@ -162,6 +162,35 @@ def _get_channel_bindings_application_data(response):
 
     return application_data
 
+
+# Return the hostname as it will be canonicalized by
+# krb5_sname_to_principal.  We can't simply use socket.getfqdn()
+# because it explicitly prefers results containing periods and
+# krb5_sname_to_principal doesn't care.
+#
+# This is necessary to support use cases where multiple services
+# are hosted on the same machine under multiple CNAMEs. It won't do
+# any good to use a SPN that mentions one of the CNAMES, we need to ask for the real machine.
+#
+# Maybe we should use socket.getfqdn here, but that doesn't use AI_CANONNAME
+# but rather chooses the first entry in gethostbyaddr that contains a dot, which seems
+# a trifle strange: https://github.com/python/cpython/blob/master/Lib/socket.py#L681
+#
+# https://github.com/krb5/krb5/blob/d406afa363554097ac48646a29249c04f498c88e/src/util/k5test.py#L505-L520
+# https://chromium.googlesource.com/chromium/src/+/lkgr/net/http/http_auth_handler_negotiate.cc#150
+def _get_default_kerb_host(hostname):
+    try:
+        ais = socket.getaddrinfo(hostname, None, 0, 0, 0, socket.AI_CANONNAME)
+    except socket.gaierror:
+        ais = []
+    
+    if not ais:
+        return hostname.lower()
+
+    _family, _socktype, _proto, canonname, _sockaddr = ais[0]
+    return canonname.lower()
+
+
 class HTTPKerberosAuth(AuthBase):
     """Attaches HTTP GSSAPI/Kerberos Authentication to the given Request
     object."""
@@ -210,13 +239,7 @@ class HTTPKerberosAuth(AuthBase):
             if self.hostname_override is not None:
                 kerb_host = self.hostname_override
             else:
-                # We should use the FQDN. This is necessary to support use
-                # cases where multiple services are hosted on the same machine
-                # under multiple CNAMEs. It won't do any good to use a SPN that
-                # mentions one of the CNAMES, we need to ask for the real machine.
-                #
-                # https://chromium.googlesource.com/chromium/src/+/lkgr/net/http/http_auth_handler_negotiate.cc#150
-                kerb_host = socket.getfqdn(host)
+                kerb_host = _get_default_kerb_host(host)
             kerb_spn = "{0}@{1}".format(self.service, kerb_host)
 
             result, self.context[host] = kerberos.authGSSClientInit(kerb_spn,

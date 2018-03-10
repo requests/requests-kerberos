@@ -660,11 +660,10 @@ class KerberosTestCase(unittest.TestCase):
                             authGSSClientResponse=clientResponse,
                             authGSSClientStep=clientStep_continue):
             
-            getfqdn = socket.getfqdn
-            def getfqdn_mock(host):
-                return 'otherhost.otherdomain.org' if host == 'www.example.org' else getfqdn(host)
+            def get_host_mock(host):
+                return 'otherhost.otherdomain.org' if host == 'www.example.org' else socket.getfqdn(host)
 
-            with patch.multiple('socket', getfqdn=getfqdn_mock):
+            with patch.multiple('requests_kerberos.kerberos_', _get_default_kerb_host=get_host_mock):
                 response = requests.Response()
                 response.url = "http://www.example.org/"
                 response.headers = {'www-authenticate': 'negotiate token'}
