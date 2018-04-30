@@ -119,6 +119,24 @@ setting the ``hostname_override`` arg:
     >>> r = requests.get("https://externalhost.example.org/", auth=kerberos_auth)
     ...
 
+If ``externalhost.example.org`` is a e.g. CNAME that can be resolved to
+``internalhost.local`` by via DNS, then you can have ``requests-kerberos``
+use the resolved version of the hostname for Kerberos by specifying the
+``canonicalize_hostname`` flag:
+
+.. code-block:: python
+
+    >>> import requests
+    >>> from requests_kerberos import HTTPKerberosAuth
+    >>> kerberos_auth = HTTPKerberosAuth(canonicalize_hostname=True)
+    >>> r = requests.get("https://externalhost.example.org/", auth=kerberos_auth)
+    ...
+
+Canonicalizing hostnames in this way is the default behaviour for almost all browsers.
+We don't match this behaviour because it can weaken security in the case where
+mutual authentication is being used over unauthenticated HTTP to validate the identity
+of the server.
+
 Explicit Principal
 ------------------
 

@@ -198,7 +198,8 @@ class HTTPKerberosAuth(AuthBase):
             self, mutual_authentication=REQUIRED,
             service="HTTP", delegate=False, force_preemptive=False,
             principal=None, hostname_override=None,
-            sanitize_mutual_error_response=True, send_cbt=True):
+            sanitize_mutual_error_response=True, send_cbt=True,
+            canonicalize_hostname=False):
         self.context = {}
         self.mutual_authentication = mutual_authentication
         self.delegate = delegate
@@ -207,6 +208,7 @@ class HTTPKerberosAuth(AuthBase):
         self.force_preemptive = force_preemptive
         self.principal = principal
         self.hostname_override = hostname_override
+        self.canonicalize_hostname = canonicalize_hostname
         self.sanitize_mutual_error_response = sanitize_mutual_error_response
         self.auth_done = False
         self.winrm_encryption_available = hasattr(kerberos, 'authGSSWinRMEncryptMessage')
@@ -238,8 +240,10 @@ class HTTPKerberosAuth(AuthBase):
             # w/ name-based HTTP hosting)
             if self.hostname_override is not None:
                 kerb_host = self.hostname_override
-            else:
+            elif self.canonicalize_hostname:
                 kerb_host = _get_default_kerb_host(host)
+            else:
+                kerb_host = host
             kerb_spn = "{0}@{1}".format(self.service, kerb_host)
 
             result, self.context[host] = kerberos.authGSSClientInit(kerb_spn,

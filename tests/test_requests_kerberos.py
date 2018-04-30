@@ -668,7 +668,7 @@ class KerberosTestCase(unittest.TestCase):
                 response.url = "http://www.example.org/"
                 response.headers = {'www-authenticate': 'negotiate token'}
                 host = urlparse(response.url).hostname
-                auth = requests_kerberos.HTTPKerberosAuth()
+                auth = requests_kerberos.HTTPKerberosAuth(canonicalize_hostname=True)
                 auth.generate_request_header(response, host)
                 clientInit_complete.assert_called_with(
                     "HTTP@otherhost.otherdomain.org",
