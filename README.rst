@@ -119,8 +119,8 @@ setting the ``hostname_override`` arg:
     >>> r = requests.get("https://externalhost.example.org/", auth=kerberos_auth)
     ...
 
-If ``externalhost.example.org`` is a e.g. CNAME that can be resolved to
-``internalhost.local`` by via DNS, then you can have ``requests-kerberos``
+If ``externalhost.example.org`` is a CNAME that can be resolved to
+``internalhost.local`` via DNS, then you can have ``requests-kerberos``
 use the resolved version of the hostname for Kerberos by specifying the
 ``canonicalize_hostname`` flag:
 
