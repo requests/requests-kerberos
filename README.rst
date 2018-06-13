@@ -147,13 +147,17 @@ Delegation
 
 ``requests_kerberos`` supports credential delegation (``GSS_C_DELEG_FLAG``).
 To enable delegation of credentials to a server that requests delegation, pass
-``delegate=True`` to ``HTTPKerberosAuth``:
+``delegate=True`` and ``delegated_context=<context>`` (where context is the server
+context containing delegated credentials) to ``HTTPKerberosAuth``:
 
 .. code-block:: python
 
     >>> import requests
+    >>> import kerberos
     >>> from requests_kerberos import HTTPKerberosAuth
-    >>> r = requests.get("http://example.org", auth=HTTPKerberosAuth(delegate=True))
+    >>> result, context = kerberos.authGSSServerInit("DELEGATE")
+    >>> result = kerberos.authGSSServerStep(context, "delegated_token")
+    >>> r = requests.get("http://example.org", auth=HTTPKerberosAuth(delegate=True, delegated_context=context))
     ...
 
 Be careful to only allow delegation to servers you trust as they will be able

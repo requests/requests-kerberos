@@ -21,7 +21,7 @@ import requests_kerberos
 import unittest
 from requests_kerberos.kerberos_ import _get_certificate_hash
 
-# kerberos.authClientInit() is called with the service name (HTTP@FQDN) and
+# kerberos.authGSSClientInit() is called with the service name (HTTP@FQDN) and
 # returns 1 and a kerberos context object on success. Returns -1 on failure.
 clientInit_complete = Mock(return_value=(1, "CTX"))
 clientInit_error = Mock(return_value=(-1, "CTX"))
@@ -596,7 +596,8 @@ class KerberosTestCase(unittest.TestCase):
             response.connection = connection
             response._content = ""
             response.raw = raw
-            auth = requests_kerberos.HTTPKerberosAuth(1, "HTTP", True)
+            delegated_context = "DELEGATED_CTX"
+            auth = requests_kerberos.HTTPKerberosAuth(1, "HTTP", True, delegated_context=delegated_context)
             r = auth.authenticate_user(response)
 
             self.assertTrue(response in r.history)
@@ -612,7 +613,8 @@ class KerberosTestCase(unittest.TestCase):
                     kerberos.GSS_C_MUTUAL_FLAG |
                     kerberos.GSS_C_SEQUENCE_FLAG |
                     kerberos.GSS_C_DELEG_FLAG),
-                principal=None
+                principal=None,
+                delegated=delegated_context
                 )
             clientStep_continue.assert_called_with("CTX", "token")
             clientResponse.assert_called_with("CTX")

@@ -168,10 +168,11 @@ class HTTPKerberosAuth(AuthBase):
             self, mutual_authentication=REQUIRED,
             service="HTTP", delegate=False, force_preemptive=False,
             principal=None, hostname_override=None,
-            sanitize_mutual_error_response=True, send_cbt=True):
+            sanitize_mutual_error_response=True, send_cbt=True, delegated_context=None):
         self.context = {}
         self.mutual_authentication = mutual_authentication
         self.delegate = delegate
+        self.delegated_context = delegated_context
         self.pos = None
         self.service = service
         self.force_preemptive = force_preemptive
@@ -209,8 +210,13 @@ class HTTPKerberosAuth(AuthBase):
             kerb_host = self.hostname_override if self.hostname_override is not None else host
             kerb_spn = "{0}@{1}".format(self.service, kerb_host)
 
-            result, self.context[host] = kerberos.authGSSClientInit(kerb_spn,
-                gssflags=gssflags, principal=self.principal)
+            if self.delegated_context:
+                result, self.context[host] = kerberos.authGSSClientInit(kerb_spn,
+                    gssflags=gssflags, principal=self.principal,
+                    delegated=self.delegated_context)
+            else:
+                result, self.context[host] = kerberos.authGSSClientInit(kerb_spn,
+                    gssflags=gssflags, principal=self.principal)
 
             if result < 1:
                 raise EnvironmentError(result, kerb_stage)
