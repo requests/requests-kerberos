@@ -58,4 +58,7 @@ setup(
     },
     test_suite='test_requests_kerberos',
     tests_require=['mock'],
+    classifiers=[
+        "License :: OSI Approved :: ISC License (ISCL)"
+    ],
 )
