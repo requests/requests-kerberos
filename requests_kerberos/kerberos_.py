@@ -1,7 +1,7 @@
 try:
-    import kerberos
-except ImportError:
     import winkerberos as kerberos
+except ImportError:
+    import kerberos
 import logging
 import re
 import sys
