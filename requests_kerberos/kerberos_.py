@@ -1,10 +1,16 @@
-try:
-    import winkerberos as kerberos
-except ImportError:
-    import kerberos
+import sys
+if sys.platform in ["win32", "cygwin"]:
+    try:
+        import kerberos
+    except ImportError:
+        import winkerberos as kerberos
+else:
+    try:
+        import winkerberos as kerberos
+    except ImportError:
+        import kerberos
 import logging
 import re
-import sys
 import warnings
 
 from cryptography import x509
