@@ -21,11 +21,25 @@ authentication. Basic GET usage:
 
 The entire ``requests.api`` should be supported.
 
+Setup
+-----
+
+In order to use this library, there must already be a Kerberos Ticket-Granting
+Ticket(TGT) cached in a Kerberos credential cache. Whether a TGT is available
+can be easily determined by running the ``klist`` command. If no TGT is
+available, then it first must be obtained by running the ``kinit`` command, or
+pointing the $KRB5CCNAME to a credential cache with a valid TGT.
+
+In short, the library will handle the "negotiations" of Kerberos authentication,
+but ensuring that an initial TGT is available and valid is the responsibility
+of the user.
+
 Authentication Failures
 -----------------------
 
 Client authentication failures will be communicated to the caller by returning
-the 401 response.
+the 401 response. A 401 response may also come from an expired Ticket-Granting
+Ticket.
 
 Mutual Authentication
 ---------------------
@@ -96,7 +110,7 @@ no Kerberos challenges are sent after the initial auth handshake. This
 behavior can be altered by setting  ``force_preemptive=True``:
 
 .. code-block:: python
-    
+
     >>> import requests
     >>> from requests_kerberos import HTTPKerberosAuth, REQUIRED
     >>> kerberos_auth = HTTPKerberosAuth(mutual_authentication=REQUIRED, force_preemptive=True)
