@@ -179,14 +179,13 @@ class HTTPKerberosAuth(AuthBase):
         self.hostname_override = hostname_override
         self.sanitize_mutual_error_response = sanitize_mutual_error_response
         self.auth_done = False
-        self.winrm_encryption_available = hasattr(kerberos, 'authGSSWinRMEncryptMessage')
 
         # Set the CBT values populated after the first response
         self.send_cbt = send_cbt
         self.cbt_binding_tried = False
         self.cbt_struct = None
 
-    def generate_request_header(self, response, host, is_preemptive=False):
+    def generate_request_header(self, host, request=None, response=None, is_preemptive=False):
         """
         Generates the GSSAPI authentication token with kerberos.
 
@@ -194,6 +193,9 @@ class HTTPKerberosAuth(AuthBase):
         with failure detail.
 
         """
+
+        if request is None:
+            request = response.request
 
         # Flags used by kerberos module.
         gssflags = kerberos.GSS_C_MUTUAL_FLAG | kerberos.GSS_C_SEQUENCE_FLAG
@@ -209,8 +211,10 @@ class HTTPKerberosAuth(AuthBase):
             kerb_host = self.hostname_override if self.hostname_override is not None else host
             kerb_spn = "{0}@{1}".format(self.service, kerb_host)
 
-            result, self.context[host] = kerberos.authGSSClientInit(kerb_spn,
+            result, ctx = kerberos.authGSSClientInit(kerb_spn,
                 gssflags=gssflags, principal=self.principal)
+
+            self.context[request] = ctx
 
             if result < 1:
                 raise EnvironmentError(result, kerb_stage)
@@ -222,18 +226,18 @@ class HTTPKerberosAuth(AuthBase):
             kerb_stage = "authGSSClientStep()"
             # If this is set pass along the struct to Kerberos
             if self.cbt_struct:
-                result = kerberos.authGSSClientStep(self.context[host],
+                result = kerberos.authGSSClientStep(ctx,
                                                     negotiate_resp_value,
                                                     channel_bindings=self.cbt_struct)
             else:
-                result = kerberos.authGSSClientStep(self.context[host],
+                result = kerberos.authGSSClientStep(ctx,
                                                     negotiate_resp_value)
 
             if result < 0:
                 raise EnvironmentError(result, kerb_stage)
 
             kerb_stage = "authGSSClientResponse()"
-            gss_response = kerberos.authGSSClientResponse(self.context[host])
+            gss_response = kerberos.authGSSClientResponse(ctx)
 
             return "Negotiate {0}".format(gss_response)
 
@@ -258,7 +262,7 @@ class HTTPKerberosAuth(AuthBase):
         host = urlparse(response.url).hostname
 
         try:
-            auth_header = self.generate_request_header(response, host)
+            auth_header = self.generate_request_header(host, response=response)
         except KerberosExchangeError:
             # GSS Failure, return existing response
             return response
@@ -297,6 +301,9 @@ class HTTPKerberosAuth(AuthBase):
         This is necessary so that we can authenticate responses if requested"""
 
         log.debug("handle_other(): Handling: %d" % response.status_code)
+
+        setattr(response, 'requests_kerberos_context',
+                self.context.get(response.request))
 
         if self.mutual_authentication in (REQUIRED, OPTIONAL) and not self.auth_done:
 
@@ -348,16 +355,19 @@ class HTTPKerberosAuth(AuthBase):
         log.debug("authenticate_server(): Authenticate header: {0}".format(
             _negotiate_value(response)))
 
-        host = urlparse(response.url).hostname
+        ctx = response.requests_kerberos_context
+        if ctx is None:
+            log.exception("authenticate_server(): no established context")
+            return False
 
         try:
             # If this is set pass along the struct to Kerberos
             if self.cbt_struct:
-                result = kerberos.authGSSClientStep(self.context[host],
+                result = kerberos.authGSSClientStep(ctx,
                                                     _negotiate_value(response),
                                                     channel_bindings=self.cbt_struct)
             else:
-                result = kerberos.authGSSClientStep(self.context[host],
+                result = kerberos.authGSSClientStep(ctx,
                                                     _negotiate_value(response))
         except kerberos.GSSError:
             log.exception("authenticate_server(): authGSSClientStep() failed:")
@@ -416,25 +426,13 @@ class HTTPKerberosAuth(AuthBase):
         """Deregisters the response handler"""
         response.request.deregister_hook('response', self.handle_response)
 
-    def wrap_winrm(self, host, message):
-        if not self.winrm_encryption_available:
-            raise NotImplementedError("WinRM encryption is not available on the installed version of pykerberos")
-
-        return kerberos.authGSSWinRMEncryptMessage(self.context[host], message)
-
-    def unwrap_winrm(self, host, message, header):
-        if not self.winrm_encryption_available:
-            raise NotImplementedError("WinRM encryption is not available on the installed version of pykerberos")
-
-        return kerberos.authGSSWinRMDecryptMessage(self.context[host], message, header)
-
     def __call__(self, request):
         if self.force_preemptive and not self.auth_done:
             # add Authorization header before we receive a 401
             # by the 401 handler
             host = urlparse(request.url).hostname
 
-            auth_header = self.generate_request_header(None, host, is_preemptive=True)
+            auth_header = self.generate_request_header(host, request=request, is_preemptive=True)
 
             log.debug("HTTPKerberosAuth: Preemptive Authorization header: {0}".format(auth_header))
 
