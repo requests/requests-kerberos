@@ -1,6 +1,14 @@
 History
 =======
 
+0.14.0.dev0: 2019-07-01
+-----------------------
+
+- Dropped winrm support. The kerberos context is now attached to response
+  objects so applications like winrm can be implemented external to
+  requests-kerberos.
+- Corrected a concurrency issue exposed by threaded applications.
+
 0.12.0: 2017-12-20
 ------------------------
 

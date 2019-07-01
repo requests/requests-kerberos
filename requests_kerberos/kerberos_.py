@@ -185,7 +185,7 @@ class HTTPKerberosAuth(AuthBase):
         self.cbt_binding_tried = False
         self.cbt_struct = None
 
-    def generate_request_header(self, host, request=None, response=None, is_preemptive=False):
+    def generate_request_header(self, response, host, request=None, is_preemptive=False):
         """
         Generates the GSSAPI authentication token with kerberos.
 
@@ -262,7 +262,7 @@ class HTTPKerberosAuth(AuthBase):
         host = urlparse(response.url).hostname
 
         try:
-            auth_header = self.generate_request_header(host, response=response)
+            auth_header = self.generate_request_header(response, host)
         except KerberosExchangeError:
             # GSS Failure, return existing response
             return response
@@ -426,13 +426,32 @@ class HTTPKerberosAuth(AuthBase):
         """Deregisters the response handler"""
         response.request.deregister_hook('response', self.handle_response)
 
+    def wrap_winrm(self, host, message):
+        raise NotImplementedError(
+            "WinRM encryption is no longer supported. The established "
+            "kerberos is now made available on the returned response objects "
+            "with the attribute named 'requests_kerberos_context' so WinRM "
+            "and other similar applications can be implemented external to "
+            "requests_kerberos."
+        )
+
+    def unwrap_winrm(self, host, message, header):
+        raise NotImplementedError(
+            "WinRM encryption is no longer supported. The established "
+            "kerberos is now made available on the returned response objects "
+            "with the attribute named 'requests_kerberos_context' so WinRM "
+            "and other similar applications can be implemented external to "
+            "requests_kerberos."
+        )
+
+
     def __call__(self, request):
         if self.force_preemptive and not self.auth_done:
             # add Authorization header before we receive a 401
             # by the 401 handler
             host = urlparse(request.url).hostname
 
-            auth_header = self.generate_request_header(host, request=request, is_preemptive=True)
+            auth_header = self.generate_request_header(None, host, request=request, is_preemptive=True)
 
             log.debug("HTTPKerberosAuth: Preemptive Authorization header: {0}".format(auth_header))
 
