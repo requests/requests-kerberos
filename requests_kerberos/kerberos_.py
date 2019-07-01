@@ -303,7 +303,7 @@ class HTTPKerberosAuth(AuthBase):
         log.debug("handle_other(): Handling: %d" % response.status_code)
 
         setattr(response, 'requests_kerberos_context',
-                self.context.get(response.request))
+                self.context.pop(response.request, None))
 
         if self.mutual_authentication in (REQUIRED, OPTIONAL) and not self.auth_done:
 
