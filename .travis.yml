@@ -10,11 +10,11 @@ dist: xenial
 
 matrix:
   include:
-  - env: PYENV=2.7.14 IMAGE=python:2.7.14-slim-stretch
-  - env: PYENV=3.4.7 IMAGE=ubuntu:16.04
-  - env: PYENV=3.5.4 IMAGE=ubuntu:16.04
-  - env: PYENV=3.6.3 IMAGE=python:3.6.3-slim-stretch
-  - env: PYENV=3.7.1 IMAGE=python:3.7.1-slim-stretch
+  - env: PYENV=2.7.16 IMAGE=python:2.7.16-slim-stretch
+  - env: PYENV=3.4.10 IMAGE=ubuntu:16.04
+  - env: PYENV=3.5.7 IMAGE=ubuntu:16.04
+  - env: PYENV=3.6.8 IMAGE=python:3.6.8-slim-stretch
+  - env: PYENV=3.7.3 IMAGE=python:3.7.3-slim-stretch
 
 install:
 - pip install coveralls # Need to have coveralls installed locally for after_success to run
