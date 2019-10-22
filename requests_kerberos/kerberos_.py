@@ -263,8 +263,7 @@ class HTTPKerberosAuth(AuthBase):
             # GSS Failure, return existing response
             return response
 
-        log.debug("authenticate_user(): Authorization header: {0}".format(
-            auth_header))
+        log.debug("authenticate_user(): Adding authorization header")
         response.request.headers['Authorization'] = auth_header
 
         # Consume the content so we can reuse the connection for the next
@@ -436,7 +435,7 @@ class HTTPKerberosAuth(AuthBase):
 
             auth_header = self.generate_request_header(None, host, is_preemptive=True)
 
-            log.debug("HTTPKerberosAuth: Preemptive Authorization header: {0}".format(auth_header))
+            log.debug("HTTPKerberosAuth: Adding preemptive Authorization header")
 
             request.headers['Authorization'] = auth_header
 
