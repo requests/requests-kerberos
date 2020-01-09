@@ -207,7 +207,7 @@ class HTTPKerberosAuth(AuthBase):
             # (eg, in cases of aliased hosts, internal vs external, CNAMEs
             # w/ name-based HTTP hosting)
             kerb_host = self.hostname_override if self.hostname_override is not None else host
-            kerb_spn = "{0}@{1}".format(self.service, kerb_host)
+            kerb_spn = "{0}/{1}".format('WSMAN', kerb_host)
 
             result, self.context[host] = kerberos.authGSSClientInit(kerb_spn,
                 gssflags=gssflags, principal=self.principal)
