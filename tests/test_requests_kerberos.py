@@ -216,6 +216,52 @@ class KerberosTestCase(unittest.TestCase):
             clientStep_continue.assert_called_with("CTX", "token")
             clientResponse.assert_called_with("CTX")
 
+    def test_authenticate_user2(self):
+        with patch.multiple(kerberos_module_name,
+                            authGSSClientInit=clientInit_complete,
+                            authGSSClientResponse=clientResponse,
+                            authGSSClientStep=clientStep_continue):
+
+            response_ok = requests.Response()
+            response_ok.url = "http://not_used.example.org/"
+            response_ok.status_code = 200
+            response_ok.headers = {'proxy-authenticate': 'negotiate servertoken'}
+
+            connection = Mock()
+            connection.send = Mock(return_value=response_ok)
+
+            raw = Mock()
+            raw.release_conn = Mock(return_value=None)
+
+            request = requests.Request()
+            response = requests.Response()
+            response.request = request
+            response.url = "http://not_used.example.org/"
+            response.headers = {'proxy-authenticate': 'negotiate token'}
+            response.status_code = 407
+            response.connection = connection
+            response._content = ""
+            response.raw = raw
+            auth = requests_kerberos.HTTPKerberosAuth()
+            kwa = {'proxies' : {'http': 'http://www.example.org:10080', 'https': 'https://www.example.org:10080'} }
+            r = auth.authenticate_user(response, **kwa)
+
+            self.assertTrue(response in r.history)
+            self.assertEqual(r, response_ok)
+            self.assertEqual(
+                request.headers['Proxy-Authorization'],
+                'Negotiate GSSRESPONSE')
+            connection.send.assert_called_with(request, **kwa)
+            raw.release_conn.assert_called_with()
+            clientInit_complete.assert_called_with(
+                "HTTP@www.example.org",
+                gssflags=(
+                    kerberos.GSS_C_MUTUAL_FLAG |
+                    kerberos.GSS_C_SEQUENCE_FLAG),
+                principal=None)
+            clientStep_continue.assert_called_with("CTX", "token")
+            clientResponse.assert_called_with("CTX")
+
     def test_handle_401(self):
         with patch.multiple(kerberos_module_name,
                             authGSSClientInit=clientInit_complete,
@@ -251,6 +297,52 @@ class KerberosTestCase(unittest.TestCase):
                 request.headers['Authorization'],
                 'Negotiate GSSRESPONSE')
             connection.send.assert_called_with(request)
+            raw.release_conn.assert_called_with()
+            clientInit_complete.assert_called_with(
+                "HTTP@www.example.org",
+                gssflags=(
+                    kerberos.GSS_C_MUTUAL_FLAG |
+                    kerberos.GSS_C_SEQUENCE_FLAG),
+                principal=None)
+            clientStep_continue.assert_called_with("CTX", "token")
+            clientResponse.assert_called_with("CTX")
+
+    def test_handle_407(self):
+        with patch.multiple(kerberos_module_name,
+                            authGSSClientInit=clientInit_complete,
+                            authGSSClientResponse=clientResponse,
+                            authGSSClientStep=clientStep_continue):
+
+            response_ok = requests.Response()
+            response_ok.url = "http://not_used.example.org/"
+            response_ok.status_code = 200
+            response_ok.headers = {'proxy-authenticate': 'negotiate servertoken'}
+
+            connection = Mock()
+            connection.send = Mock(return_value=response_ok)
+
+            raw = Mock()
+            raw.release_conn = Mock(return_value=None)
+
+            request = requests.Request()
+            response = requests.Response()
+            response.request = request
+            response.url = "http://not_used.example.org/"
+            response.headers = {'proxy-authenticate': 'negotiate token'}
+            response.status_code = 407
+            response.connection = connection
+            response._content = ""
+            response.raw = raw
+            auth = requests_kerberos.HTTPKerberosAuth()
+            kwa = {'proxies' : {'http': 'http://www.example.org:10080', 'https': 'https://www.example.org:10080'} }
+            r = auth.handle_407(response, **kwa)
+
+            self.assertTrue(response in r.history)
+            self.assertEqual(r, response_ok)
+            self.assertEqual(
+                request.headers['Proxy-Authorization'],
+                'Negotiate GSSRESPONSE')
+            connection.send.assert_called_with(request, **kwa)
             raw.release_conn.assert_called_with()
             clientInit_complete.assert_called_with(
                 "HTTP@www.example.org",
