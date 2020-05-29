@@ -212,7 +212,8 @@ class KerberosTestCase(unittest.TestCase):
                 gssflags=(
                     kerberos.GSS_C_MUTUAL_FLAG |
                     kerberos.GSS_C_SEQUENCE_FLAG),
-                principal=None)
+                principal=None,
+                mech_oid=kerberos.GSS_MECH_OID_KRB5)
             clientStep_continue.assert_called_with("CTX", "token")
             clientResponse.assert_called_with("CTX")
 

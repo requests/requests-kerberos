@@ -168,7 +168,8 @@ class HTTPKerberosAuth(AuthBase):
             self, mutual_authentication=REQUIRED,
             service="HTTP", delegate=False, force_preemptive=False,
             principal=None, hostname_override=None,
-            sanitize_mutual_error_response=True, send_cbt=True):
+            sanitize_mutual_error_response=True, send_cbt=True,
+            mech_oid=kerberos.GSS_MECH_OID_KRB5):
         self.context = {}
         self.mutual_authentication = mutual_authentication
         self.delegate = delegate
@@ -180,6 +181,7 @@ class HTTPKerberosAuth(AuthBase):
         self.sanitize_mutual_error_response = sanitize_mutual_error_response
         self.auth_done = False
         self.winrm_encryption_available = hasattr(kerberos, 'authGSSWinRMEncryptMessage')
+        self.mech_oid=mech_oid
 
         # Set the CBT values populated after the first response
         self.send_cbt = send_cbt
@@ -210,7 +212,7 @@ class HTTPKerberosAuth(AuthBase):
             kerb_spn = "{0}@{1}".format(self.service, kerb_host)
 
             result, self.context[host] = kerberos.authGSSClientInit(kerb_spn,
-                gssflags=gssflags, principal=self.principal)
+                gssflags=gssflags, principal=self.principal, mech_oid=self.mech_oid)
 
             if result < 1:
                 raise EnvironmentError(result, kerb_stage)
