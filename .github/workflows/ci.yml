@@ -1,0 +1,91 @@
+name: Test requests-kerberos
+on:
+  push:
+    branches:
+    - master
+    paths-ignore:
+    - HISTORY.rst
+    - LICENSE
+    - README.rst
+
+  pull_request:
+    branches:
+    - master
+    paths-ignore:
+    - HISTORY.rst
+    - LICENSE
+    - README.rst
+
+  release:
+    types:
+    - published
+
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - python-version: '3.6'
+          image: python:3.6-slim
+        - python-version: '3.7'
+          image: python:3.7-slim
+        - python-version: '3.8'
+          image: python:3.8-slim
+        - python-version: '3.9'
+          image: python:3.9-slim
+        #- python-version: '3.10'
+        #  image: python:3.10-slim
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Start test HTTP container
+      shell: bash
+      run: >-
+        docker run
+        --rm
+        -v $(pwd):$(pwd)
+        -w $(pwd)
+        -e PYENV=${{ matrix.python-version }}
+        -e PYTEST_ADDOPTS="--color=yes"
+        -e KERBEROS_USERNAME=administrator
+        -e KERBEROS_PASSWORD=Password01
+        -e KERBEROS_REALM=example.com
+        ${{ matrix.image }}
+        /bin/bash ci/setup-kerb.sh
+
+  publish:
+    name: publish
+    needs:
+    - test
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+
+    - name: Installing baseline packages
+      run: |
+        echo "Installing baseline pip packages"
+        python -m pip install --upgrade pip setuptools wheel
+
+    - name: Build package
+      run: python setup.py sdist bdist_wheel
+
+    - name: Capture Wheel and SDist
+      uses: actions/upload-artifact@v2
+      with:
+        name: artifact
+        path: dist/*
+
+    - name: Publish
+      if: startsWith(github.ref, 'refs/tags/v')
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        user: __token__
+        password: ${{ secrets.PYPI_API_TOKEN }}
