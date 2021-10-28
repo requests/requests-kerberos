@@ -49,16 +49,11 @@ setup(
     version=get_version(),
     install_requires=[
         'requests>=1.1.0',
-        'cryptography>=1.3;python_version!="3.3"',
-        'cryptography>=1.3,<2;python_version=="3.3"'
+        'cryptography>=1.3',
+        'pyspnego[kerberos]',
     ],
-    extras_require={
-        ':sys_platform=="win32"': ['winkerberos>=0.5.0'],
-        ':sys_platform!="win32"': ['pykerberos>=1.1.8,<2.0.0'],
-    },
+    extras_require={},
     python_requires='>=3.6',
-    test_suite='test_requests_kerberos',
-    tests_require=['mock'],
     classifiers=[
         "License :: OSI Approved :: ISC License (ISCL)"
     ],
