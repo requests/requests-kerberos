@@ -1,8 +1,8 @@
 requests Kerberos/GSSAPI authentication library
 ===============================================
 
-.. image:: https://github.com/jborean93/smbprotocol/actions/workflows/ci.yml/badge.svg
-    :target: https://github.com/jborean93/smbprotocol/actions/workflows/ci.yml
+.. image:: https://github.com/requests/requests-kerberos/actions/workflows/ci.yml/badge.svg
+    :target: https://github.com/requests/requests-kerberos/actions/workflows/ci.yml
 
 Requests is an HTTP library, written in Python, for human beings. This library
 adds optional Kerberos/GSSAPI authentication support and supports mutual
