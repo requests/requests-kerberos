@@ -10,6 +10,7 @@ History
 - Dropped support for Python 2 and raised minimum Python version to 3.6.
 - Renamed the ``context`` attribute to ``_context`` to indicate it's meant for
   internal use only.
+- Fix Negotiate header regex pattern to avoid DoS affected patterns
 
 .. _pyspnego: https://github.com/jborean93/pyspnego
 
@@ -19,7 +20,6 @@ History
 - Add support for channel binding tokens (assumes pykerberos support >= 1.2.1)
 - Add support for kerberos message encryption (assumes pykerberos support >= 1.2.1)
 - Misc CI/test fixes
-- Fix Negotiate header regex pattern to avoid DoS affected patterns
 
 0.11.0: 2016-11-02
 ------------------
