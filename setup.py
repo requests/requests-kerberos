@@ -47,6 +47,7 @@ setup(
     package_data={'': ['LICENSE', 'AUTHORS']},
     include_package_data=True,
     version=get_version(),
+    license='ISC License',
     install_requires=[
         'requests>=1.1.0',
         'cryptography>=1.3',
