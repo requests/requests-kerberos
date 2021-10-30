@@ -37,13 +37,13 @@ jobs:
           image: python:3.8-slim
         - python-version: '3.9'
           image: python:3.9-slim
-        #- python-version: '3.10'
-        #  image: python:3.10-slim
+        - python-version: '3.10'
+          image: python:3.10-slim
 
     steps:
     - uses: actions/checkout@v2
 
-    - name: Start test HTTP container
+    - name: Run tests
       shell: bash
       run: >-
         docker run
@@ -54,7 +54,7 @@ jobs:
         -e PYTEST_ADDOPTS="--color=yes"
         -e KERBEROS_USERNAME=administrator
         -e KERBEROS_PASSWORD=Password01
-        -e KERBEROS_REALM=example.com
+        -h host.example.com
         ${{ matrix.image }}
         /bin/bash ci/setup-kerb.sh
 

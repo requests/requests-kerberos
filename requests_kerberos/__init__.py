@@ -16,9 +16,8 @@ import logging
 
 from .kerberos_ import HTTPKerberosAuth, REQUIRED, OPTIONAL, DISABLED
 from .exceptions import MutualAuthenticationError
-from .compat import NullHandler
 
-logging.getLogger(__name__).addHandler(NullHandler())
+logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 __all__ = ('HTTPKerberosAuth', 'MutualAuthenticationError', 'REQUIRED',
            'OPTIONAL', 'DISABLED')
