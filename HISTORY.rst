@@ -7,6 +7,7 @@ History
 - Add support for channel binding tokens (assumes pykerberos support >= 1.2.1)
 - Add support for kerberos message encryption (assumes pykerberos support >= 1.2.1)
 - Misc CI/test fixes
+- Fix Negotiate header regex pattern to avoid DoS affected patterns
 
 0.11.0: 2016-11-02
 ------------------
