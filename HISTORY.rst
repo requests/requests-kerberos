@@ -1,7 +1,7 @@
 History
 =======
 
-0.13.0: TBD
+0.13.0: 2021-11-03
 ------------------
 
 - Change Kerberos dependencies to pyspnego_ to modernise the underlying
