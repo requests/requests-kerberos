@@ -2,17 +2,11 @@
 
 set -e
 
-IP_ADDRESS=$(hostname -I)
-HOSTNAME=$(cat /etc/hostname)
 PY_MAJOR=${PYENV:0:1}
 
-export KERBEROS_HOSTNAME=$HOSTNAME.$KERBEROS_REALM
+export KERBEROS_HOSTNAME=$(cat /etc/hostname)
+export KERBEROS_REALM=$(echo $KERBEROS_HOSTNAME | cut -d'.' -f2,3)
 export DEBIAN_FRONTEND=noninteractive
-
-echo "Configure the hosts file for Kerberos to work in a container"
-cp /etc/hosts ~/hosts.new
-sed -i "/.*$HOSTNAME/c\\$IP_ADDRESS\t$KERBEROS_HOSTNAME" ~/hosts.new
-cp -f ~/hosts.new /etc/hosts
 
 echo "Setting up Kerberos config file at /etc/krb5.conf"
 cat > /etc/krb5.conf << EOL
@@ -23,8 +17,8 @@ cat > /etc/krb5.conf << EOL
 
 [realms]
     ${KERBEROS_REALM^^} = {
-        kdc = $KERBEROS_HOSTNAME
-        admin_server = $KERBEROS_HOSTNAME
+        kdc = localhost
+        admin_server = localhost
     }
 
 [domain_realm]
@@ -43,21 +37,15 @@ echo -e "*/*@${KERBEROS_REALM^^}\t*" > /etc/krb5kdc/kadm5.acl
 echo "Installing all the packages required in this test"
 apt-get update
 apt-get \
-    -y \
+    -yq \
     -qq \
     install \
     krb5-{user,kdc,admin-server,multidev} \
     libkrb5-dev \
-    wget \
     curl \
     apache2 \
     libapache2-mod-auth-gssapi \
-    python-dev \
-    libffi-dev \
-    build-essential \
-    libssl-dev \
-    zlib1g-dev \
-    libbz2-dev
+    build-essential
 
 echo "Creating KDC database"
 # krb5_newrealm returns non-0 return code as it is running in a container, ignore it for this command only
@@ -160,27 +148,6 @@ if [ "$CURL_OUTPUT" != "<html><head><title>Title</title></head><body>body mesage
 else
     echo -e "SUCCESS: Apache site built and set for Kerberos auth\nActual Output:\n$CURL_OUTPUT"
 fi
-
-if [ "$IMAGE" == "ubuntu:16.04" ]; then
-    echo "Downloading Python $PYENV"
-    wget -q "https://www.python.org/ftp/python/$PYENV/Python-$PYENV.tgz"
-    tar xzf "Python-$PYENV.tgz"
-    cd "Python-$PYENV"
-
-    echo "Configuring Python install"
-    ./configure &> /dev/null
-
-    echo "Running make install on Python"
-    make install &> /dev/null
-    cd ..
-    rm -rf "Python-$PYENV"
-    rm "Python-$PYENV.tgz"
-fi
-
-echo "Installing Pip"
-wget -q https://bootstrap.pypa.io/get-pip.py
-python$PY_MAJOR get-pip.py
-rm get-pip.py
 
 echo "Updating pip and installing library"
 pip$PY_MAJOR install -U pip setuptools

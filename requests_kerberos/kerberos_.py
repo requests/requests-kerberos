@@ -1,11 +1,11 @@
-try:
-    import kerberos
-except ImportError:
-    import winkerberos as kerberos
+import base64
 import logging
 import re
-import sys
 import warnings
+
+import spnego
+import spnego.channel_bindings
+import spnego.exceptions
 
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
@@ -14,10 +14,11 @@ from cryptography.exceptions import UnsupportedAlgorithm
 
 from requests.auth import AuthBase
 from requests.models import Response
-from requests.compat import urlparse, StringIO
 from requests.structures import CaseInsensitiveDict
 from requests.cookies import cookiejar_from_dict
 from requests.packages.urllib3 import HTTPResponse
+
+from urllib.parse import urlparse
 
 from .exceptions import MutualAuthenticationError, KerberosExchangeError
 
@@ -82,7 +83,7 @@ def _negotiate_value(response):
     else:
         # There's no need to re-compile this EVERY time it is called. Compile
         # it once and you won't have the performance hit of the compilation.
-        regex = re.compile(r'(?:.*,)*\s*Negotiate\s*([^,]*),?', re.I)
+        regex = re.compile(r'Negotiate\s*([^,]*)', re.I)
         _negotiate_value.regex = regex
 
     if response.status_code == 407:
@@ -93,7 +94,7 @@ def _negotiate_value(response):
     if authreq:
         match_obj = regex.search(authreq)
         if match_obj:
-            return match_obj.group(1)
+            return base64.b64decode(match_obj.group(1))
 
     return None
 
@@ -142,10 +143,7 @@ def _get_channel_bindings_application_data(response):
 
     if isinstance(raw_response, HTTPResponse):
         try:
-            if sys.version_info > (3, 0):
-                socket = raw_response._fp.fp.raw._sock
-            else:
-                socket = raw_response._fp.fp._sock
+            socket = raw_response._fp.fp.raw._sock
         except AttributeError:
             warnings.warn("Failed to get raw socket for CBT; has urllib3 impl changed",
                           NoCertificateRetrievedWarning)
@@ -172,7 +170,7 @@ class HTTPKerberosAuth(AuthBase):
             service="HTTP", delegate=False, force_preemptive=False,
             principal=None, hostname_override=None,
             sanitize_mutual_error_response=True, send_cbt=True):
-        self.context = {}
+        self._context = {}
         self.mutual_authentication = mutual_authentication
         self.delegate = delegate
         self.pos = None
@@ -182,7 +180,6 @@ class HTTPKerberosAuth(AuthBase):
         self.hostname_override = hostname_override
         self.sanitize_mutual_error_response = sanitize_mutual_error_response
         self.auth_done = False
-        self.winrm_encryption_available = hasattr(kerberos, 'authGSSWinRMEncryptMessage')
 
         # Set the CBT values populated after the first response
         self.send_cbt = send_cbt
@@ -199,61 +196,43 @@ class HTTPKerberosAuth(AuthBase):
         """
 
         # Flags used by kerberos module.
-        gssflags = kerberos.GSS_C_MUTUAL_FLAG | kerberos.GSS_C_SEQUENCE_FLAG
+        gssflags = spnego.ContextReq.sequence_detect
         if self.delegate:
-            gssflags |= kerberos.GSS_C_DELEG_FLAG
+            gssflags |= spnego.ContextReq.delegate
+        if self.mutual_authentication != DISABLED:
+            gssflags |= spnego.ContextReq.mutual_auth
 
         try:
-            kerb_stage = "authGSSClientInit()"
+            kerb_stage = "ctx init"
             # contexts still need to be stored by host, but hostname_override
             # allows use of an arbitrary hostname for the kerberos exchange
             # (eg, in cases of aliased hosts, internal vs external, CNAMEs
             # w/ name-based HTTP hosting)
             kerb_host = self.hostname_override if self.hostname_override is not None else host
-            kerb_spn = "{0}@{1}".format(self.service, kerb_host)
 
-            result, self.context[host] = kerberos.authGSSClientInit(kerb_spn,
-                gssflags=gssflags, principal=self.principal)
-
-            if result < 1:
-                raise EnvironmentError(result, kerb_stage)
+            self._context[host] = ctx = spnego.client(
+                username=self.principal,
+                hostname=kerb_host,
+                service=self.service,
+                channel_bindings=self.cbt_struct,
+                context_req=gssflags,
+                protocol="kerberos",
+            )
 
             # if we have a previous response from the server, use it to continue
             # the auth process, otherwise use an empty value
-            negotiate_resp_value = '' if is_preemptive else _negotiate_value(response)
+            negotiate_resp_value = None if is_preemptive else _negotiate_value(response)
 
-            kerb_stage = "authGSSClientStep()"
-            # If this is set pass along the struct to Kerberos
-            if self.cbt_struct:
-                result = kerberos.authGSSClientStep(self.context[host],
-                                                    negotiate_resp_value,
-                                                    channel_bindings=self.cbt_struct)
-            else:
-                result = kerberos.authGSSClientStep(self.context[host],
-                                                    negotiate_resp_value)
+            kerb_stage = "ctx step"
+            gss_response = ctx.step(in_token=negotiate_resp_value)
 
-            if result < 0:
-                raise EnvironmentError(result, kerb_stage)
+            return "Negotiate {0}".format(base64.b64encode(gss_response).decode())
 
-            kerb_stage = "authGSSClientResponse()"
-            gss_response = kerberos.authGSSClientResponse(self.context[host])
-
-            return "Negotiate {0}".format(gss_response)
-
-        except kerberos.GSSError as error:
+        except spnego.exceptions.SpnegoError as error:
             log.exception(
                 "generate_request_header(): {0} failed:".format(kerb_stage))
             log.exception(error)
-            raise KerberosExchangeError("%s failed: %s" % (kerb_stage, str(error.args)))
-
-        except EnvironmentError as error:
-            # ensure we raised this for translation to KerberosExchangeError
-            # by comparing errno to result, re-raise if not
-            if error.errno != result:
-                raise
-            message = "{0} failed, result: {1}".format(kerb_stage, result)
-            log.error("generate_request_header(): {0}".format(message))
-            raise KerberosExchangeError(message)
+            raise KerberosExchangeError("%s failed: %s" % (kerb_stage, str(error))) from error
 
     def authenticate_user(self, response, **kwargs):
         """Handles user authentication with gssapi/kerberos"""
@@ -375,21 +354,9 @@ class HTTPKerberosAuth(AuthBase):
         host = urlparse(response.url).hostname
 
         try:
-            # If this is set pass along the struct to Kerberos
-            if self.cbt_struct:
-                result = kerberos.authGSSClientStep(self.context[host],
-                                                    _negotiate_value(response),
-                                                    channel_bindings=self.cbt_struct)
-            else:
-                result = kerberos.authGSSClientStep(self.context[host],
-                                                    _negotiate_value(response))
-        except kerberos.GSSError:
-            log.exception("authenticate_server(): authGSSClientStep() failed:")
-            return False
-
-        if result < 1:
-            log.error("authenticate_server(): authGSSClientStep() failed: "
-                      "{0}".format(result))
+            self._context[host].step(in_token=_negotiate_value(response))
+        except spnego.exceptions.SpnegoError:
+            log.exception("authenticate_server(): ctx step() failed:")
             return False
 
         log.debug("authenticate_server(): returning {0}".format(response))
@@ -405,12 +372,10 @@ class HTTPKerberosAuth(AuthBase):
             # If we haven't tried, try getting it now
             cbt_application_data = _get_channel_bindings_application_data(response)
             if cbt_application_data:
-                # Only the latest version of pykerberos has this method available
-                try:
-                    self.cbt_struct = kerberos.channelBindings(application_data=cbt_application_data)
-                except AttributeError:
-                    # Using older version set to None
-                    self.cbt_struct = None
+                self.cbt_struct = spnego.channel_bindings.GssChannelBindings(
+                    application_data=cbt_application_data,
+                )
+
             # Regardless of the result, set tried to True so we don't waste time next time
             self.cbt_binding_tried = True
 
@@ -453,18 +418,6 @@ class HTTPKerberosAuth(AuthBase):
     def deregister(self, response):
         """Deregisters the response handler"""
         response.request.deregister_hook('response', self.handle_response)
-
-    def wrap_winrm(self, host, message):
-        if not self.winrm_encryption_available:
-            raise NotImplementedError("WinRM encryption is not available on the installed version of pykerberos")
-
-        return kerberos.authGSSWinRMEncryptMessage(self.context[host], message)
-
-    def unwrap_winrm(self, host, message, header):
-        if not self.winrm_encryption_available:
-            raise NotImplementedError("WinRM encryption is not available on the installed version of pykerberos")
-
-        return kerberos.authGSSWinRMDecryptMessage(self.context[host], message, header)
 
     def __call__(self, request):
         if self.force_preemptive and not self.auth_done:

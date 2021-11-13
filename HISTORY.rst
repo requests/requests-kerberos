@@ -1,6 +1,19 @@
 History
 =======
 
+0.13.0: 2021-11-03
+------------------
+
+- Change Kerberos dependencies to pyspnego_ to modernise the underlying
+  Kerberos library that is used.
+- Removed the ``wrap_winrm`` and ``unwrap_winrm`` functions
+- Dropped support for Python 2 and raised minimum Python version to 3.6.
+- Renamed the ``context`` attribute to ``_context`` to indicate it's meant for
+  internal use only.
+- Fix Negotiate header regex pattern to avoid DoS affected patterns
+
+.. _pyspnego: https://github.com/jborean93/pyspnego
+
 0.12.0: 2017-12-20
 ------------------------
 
