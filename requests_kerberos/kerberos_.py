@@ -348,13 +348,16 @@ class HTTPKerberosAuth(AuthBase):
         Returns True on success, False on failure.
         """
 
+        response_token = _negotiate_value(response)
         log.debug("authenticate_server(): Authenticate header: {0}".format(
-            _negotiate_value(response)))
+            base64.b64encode(response_token).decode()
+            if response_token
+            else ""))
 
         host = urlparse(response.url).hostname
 
         try:
-            self._context[host].step(in_token=_negotiate_value(response))
+            self._context[host].step(in_token=response_token)
         except spnego.exceptions.SpnegoError:
             log.exception("authenticate_server(): ctx step() failed:")
             return False
