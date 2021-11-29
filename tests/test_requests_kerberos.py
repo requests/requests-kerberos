@@ -182,6 +182,53 @@ def test_authenticate_user(mock_client, mocker):
     }
 
 
+def test_authenticate_user2(mock_client, mocker):
+    response_ok = requests.Response()
+    response_ok.url = "http://www.example.org/"
+    response_ok.status_code = 200
+    response_ok.headers = {'proxy-authenticate': 'negotiate c2VydmVydG9rZW4='}
+
+    connection = mocker.MagicMock()
+    connection.send.return_value = response_ok
+
+    request = requests.Request()
+    response = requests.Response()
+    response.request = request
+    response.url = "http://www.example.org/"
+    response.headers = {'proxy-authenticate': 'negotiate dG9rZW4='}
+    response.status_code = 407
+    response.connection = connection
+    response._content = ""
+    response.raw = mocker.MagicMock(return_value=None)
+    auth = requests_kerberos.HTTPKerberosAuth()
+    kwa = {'proxies' : {'http': 'http://www.example.org:10080', 'https': 'https://www.example.org:10080'} }
+    r = auth.authenticate_user(response, **kwa)
+
+    assert response in r.history
+    assert r == response_ok
+    assert request.headers["Proxy-Authorization"] == "Negotiate R1NTUkVTUE9OU0U="
+
+    assert connection.send.call_count == 1
+    assert connection.send.call_args[0] == (request,)
+    assert connection.send.call_args[1] == kwa
+    assert response.raw.release_conn.call_count == 1
+    assert response.raw.release_conn.call_args[0] == ()
+
+    assert mock_client.call_count == 1
+    assert mock_client.call_args[1] == {
+        "username": None,
+        "hostname": "www.example.org",
+        "service": "HTTP",
+        "channel_bindings": None,
+        "context_req": spnego.ContextReq.sequence_detect | spnego.ContextReq.mutual_auth,
+        "protocol": "kerberos",
+    }
+
+    assert mock_client.return_value.step.call_count == 1
+    assert mock_client.return_value.step.call_args[1] == {
+        "in_token": b"token",
+    }
+
 def test_handle_401(mock_client, mocker):
     response_ok = requests.Response()
     response_ok.url = "http://www.example.org/"
@@ -209,6 +256,54 @@ def test_handle_401(mock_client, mocker):
 
     assert connection.send.call_count == 1
     assert connection.send.call_args[0] == (request,)
+    assert response.raw.release_conn.call_count == 1
+    assert response.raw.release_conn.call_args[0] == ()
+
+    assert mock_client.call_count == 1
+    assert mock_client.call_args[1] == {
+        "username": None,
+        "hostname": "www.example.org",
+        "service": "HTTP",
+        "channel_bindings": None,
+        "context_req": spnego.ContextReq.sequence_detect | spnego.ContextReq.mutual_auth,
+        "protocol": "kerberos",
+    }
+
+    assert mock_client.return_value.step.call_count == 1
+    assert mock_client.return_value.step.call_args[1] == {
+        "in_token": b"token",
+    }
+
+
+def test_handle_407(mock_client, mocker):
+    response_ok = requests.Response()
+    response_ok.url = "http://www.example.org/"
+    response_ok.status_code = 200
+    response_ok.headers = {'proxy-authenticate': 'negotiate c2VydmVydG9rZW4='}
+
+    connection = mocker.MagicMock()
+    connection.send.return_value = response_ok
+
+    request = requests.Request()
+    response = requests.Response()
+    response.request = request
+    response.url = "http://www.example.org/"
+    response.headers = {'proxy-authenticate': 'negotiate dG9rZW4='}
+    response.status_code = 407
+    response.connection = connection
+    response._content = ""
+    response.raw = mocker.MagicMock(return_value=None)
+    auth = requests_kerberos.HTTPKerberosAuth()
+    kwa = {'proxies' : {'http': 'http://www.example.org:10080', 'https': 'https://www.example.org:10080'} }
+    r = auth.handle_407(response, **kwa)
+
+    assert response in r.history
+    assert r == response_ok
+    assert request.headers["Proxy-Authorization"] == "Negotiate R1NTUkVTUE9OU0U="
+
+    assert connection.send.call_count == 1
+    assert connection.send.call_args[0] == (request,)
+    assert connection.send.call_args[1] == kwa
     assert response.raw.release_conn.call_count == 1
     assert response.raw.release_conn.call_args[0] == ()
 
