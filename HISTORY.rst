@@ -1,6 +1,14 @@
 History
 =======
 
+0.14.0: TBD
+------------------
+
+- Added support for proxy authentication with ``HTTP`` endpoints.
+- Support for proxying ``HTTPS`` endpoints is not available due to limitations
+  of the underlying requests/urllib3 library.
+- Fixed up stray bytes to str conversion.
+
 0.13.0: 2021-11-03
 ------------------
 
