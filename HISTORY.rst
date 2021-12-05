@@ -1,7 +1,7 @@
 History
 =======
 
-0.14.0: TBD
+0.14.0: 2021-12-05
 ------------------
 
 - Added support for proxy authentication with ``HTTP`` endpoints.
