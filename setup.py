@@ -54,7 +54,6 @@ setup(
         'pyspnego[kerberos]',
     ],
     extras_require={},
-    python_requires='>=3.6',
     classifiers=[
         "License :: OSI Approved :: ISC License (ISCL)"
     ],

@@ -18,7 +18,10 @@ from requests.structures import CaseInsensitiveDict
 from requests.cookies import cookiejar_from_dict
 from requests.packages.urllib3 import HTTPResponse
 
-from urllib.parse import urlparse
+try:
+    from urllib.parse import urlparse
+except ImportError:
+     from urlparse import urlparse
 
 from .exceptions import MutualAuthenticationError, KerberosExchangeError
 
@@ -232,7 +235,11 @@ class HTTPKerberosAuth(AuthBase):
             log.exception(
                 "generate_request_header(): {0} failed:".format(kerb_stage))
             log.exception(error)
-            raise KerberosExchangeError("%s failed: %s" % (kerb_stage, str(error))) from error
+            # ensure we raised this for translation to KerberosExchangeError
+            # by comparing errno to result, re-raise if not
+            message = "%s failed: %s" % (kerb_stage, str(error))
+            # raise KerberosExchangeError() from error
+            raise KerberosExchangeError(message)
 
     def authenticate_user(self, response, **kwargs):
         """Handles user authentication with gssapi/kerberos"""
