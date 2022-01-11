@@ -182,3 +182,13 @@ If you are having difficulty we suggest you configure logging. Issues with the
 underlying kerberos libraries will be made apparent. Additionally, copious debug
 information is made available which may assist in troubleshooting if you
 increase your log level all the way up to debug.
+
+Channel Binding
+---------------
+
+Since ``v0.12.0`` this library automatically attempts to bind the
+authentication token with the channel binding data when connecting over a TLS
+connection. Channel Binding is also known as Extended Protection for
+Authentication (``EPA``) from Microsoft. This should be ignored by servers
+which do not implement support for CB but in the rare case this still fails it
+can be disabled by setting ``send_cbt=False``.

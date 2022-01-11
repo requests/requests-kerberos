@@ -26,6 +26,8 @@ History
 ------------------------
 
 - Add support for channel binding tokens (assumes pykerberos support >= 1.2.1)
+- CBT is enabled by default but for older servers which might have
+  compatibility issues this can be disabled with ``send_cbt=False``.
 - Add support for kerberos message encryption (assumes pykerberos support >= 1.2.1)
 - Misc CI/test fixes
 
