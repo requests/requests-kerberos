@@ -183,8 +183,7 @@ class HTTPKerberosAuth(AuthBase):
 
         # Set the CBT values populated after the first response
         self.send_cbt = send_cbt
-        self.cbt_binding_tried = False
-        self.cbt_struct = None
+        self._cbts = {}
 
     def generate_request_header(self, response, host, is_preemptive=False):
         """
@@ -214,7 +213,7 @@ class HTTPKerberosAuth(AuthBase):
                 username=self.principal,
                 hostname=kerb_host,
                 service=self.service,
-                channel_bindings=self.cbt_struct,
+                channel_bindings=self._cbts.get(host, None),
                 context_req=gssflags,
                 protocol="kerberos",
             )
@@ -371,16 +370,18 @@ class HTTPKerberosAuth(AuthBase):
         num_407s = kwargs.pop('num_407s', 0)
 
         # Check if we have already tried to get the CBT data value
-        if not self.cbt_binding_tried and self.send_cbt:
+        if self.send_cbt:
+            host = urlparse(response.url).hostname
             # If we haven't tried, try getting it now
-            cbt_application_data = _get_channel_bindings_application_data(response)
-            if cbt_application_data:
-                self.cbt_struct = spnego.channel_bindings.GssChannelBindings(
-                    application_data=cbt_application_data,
-                )
-
-            # Regardless of the result, set tried to True so we don't waste time next time
-            self.cbt_binding_tried = True
+            if host not in self._cbts:
+                cbt_application_data = _get_channel_bindings_application_data(response)
+                if cbt_application_data:
+                    self._cbts[host] = spnego.channel_bindings.GssChannelBindings(
+                        application_data=cbt_application_data,
+                    )
+                else:
+                    # Store None so we don't waste time next time
+                    self._cbts[host] = None
 
         if self.pos is not None:
             # Rewind the file position indicator of the body to where
