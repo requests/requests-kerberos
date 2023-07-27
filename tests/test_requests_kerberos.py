@@ -700,6 +700,25 @@ def test_principal_override(mock_client):
         "protocol": "kerberos",
     }
 
+def test_principal_override_with_pass(mock_client):
+    response = requests.Response()
+    response.url = "http://www.example.org/"
+    response.headers = {'www-authenticate': 'negotiate dG9rZW4='}
+    host = urlparse(response.url).hostname
+    auth = requests_kerberos.HTTPKerberosAuth(principal="user@REALM:password")
+    auth.generate_request_header(response, host),
+
+    assert mock_client.call_count == 1
+    assert mock_client.call_args[1] == {
+        "username": "user@REALM",
+        "password": "password",
+        "hostname": "www.example.org",
+        "service": "HTTP",
+        "channel_bindings": None,
+        "context_req": spnego.ContextReq.sequence_detect | spnego.ContextReq.mutual_auth,
+        "protocol": "kerberos",
+    }
+
 
 def test_realm_override(mock_client):
     response = requests.Response()
