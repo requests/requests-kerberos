@@ -209,14 +209,35 @@ class HTTPKerberosAuth(AuthBase):
             # w/ name-based HTTP hosting)
             kerb_host = self.hostname_override if self.hostname_override is not None else host
 
-            self._context[host] = ctx = spnego.client(
-                username=self.principal,
-                hostname=kerb_host,
-                service=self.service,
-                channel_bindings=self._cbts.get(host, None),
-                context_req=gssflags,
-                protocol="kerberos",
-            )
+            # split principal into user and password if defined
+            username = self.principal
+            password = None
+            if isinstance(username, str):
+                split = username.split(':',1)
+                if len(split) > 1:
+                    username = split[0]
+                    password = split[1]
+
+            # to prevent failing compare headers test, don't pass password if None
+            if password:
+                self._context[host] = ctx = spnego.client(
+                    username=username,
+                    password=password,
+                    hostname=kerb_host,
+                    service=self.service,
+                    channel_bindings=self._cbts.get(host, None),
+                    context_req=gssflags,
+                    protocol="kerberos",
+                )
+            else:
+                self._context[host] = ctx = spnego.client(
+                    username=username,
+                    hostname=kerb_host,
+                    service=self.service,
+                    channel_bindings=self._cbts.get(host, None),
+                    context_req=gssflags,
+                    protocol="kerberos",
+                )
 
             # if we have a previous response from the server, use it to continue
             # the auth process, otherwise use an empty value
