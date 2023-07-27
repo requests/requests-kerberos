@@ -169,7 +169,7 @@ class HTTPKerberosAuth(AuthBase):
             self, mutual_authentication=REQUIRED,
             service="HTTP", delegate=False, force_preemptive=False,
             principal=None, hostname_override=None,
-            sanitize_mutual_error_response=True, send_cbt=True):
+            sanitize_mutual_error_response=True, send_cbt=True, password=None):
         self._context = {}
         self.mutual_authentication = mutual_authentication
         self.delegate = delegate
@@ -180,6 +180,7 @@ class HTTPKerberosAuth(AuthBase):
         self.hostname_override = hostname_override
         self.sanitize_mutual_error_response = sanitize_mutual_error_response
         self.auth_done = False
+        self.password = password
 
         # Set the CBT values populated after the first response
         self.send_cbt = send_cbt
@@ -209,20 +210,11 @@ class HTTPKerberosAuth(AuthBase):
             # w/ name-based HTTP hosting)
             kerb_host = self.hostname_override if self.hostname_override is not None else host
 
-            # split principal into user and password if defined
-            username = self.principal
-            password = None
-            if isinstance(username, str):
-                split = username.split(':',1)
-                if len(split) > 1:
-                    username = split[0]
-                    password = split[1]
-
             # to prevent failing compare headers test, don't pass password if None
-            if password:
+            if self.password:
                 self._context[host] = ctx = spnego.client(
-                    username=username,
-                    password=password,
+                    username=self.principal,
+                    password=self.password,
                     hostname=kerb_host,
                     service=self.service,
                     channel_bindings=self._cbts.get(host, None),
@@ -231,7 +223,7 @@ class HTTPKerberosAuth(AuthBase):
                 )
             else:
                 self._context[host] = ctx = spnego.client(
-                    username=username,
+                    username=self.principal,
                     hostname=kerb_host,
                     service=self.service,
                     channel_bindings=self._cbts.get(host, None),

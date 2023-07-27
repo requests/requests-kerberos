@@ -705,7 +705,7 @@ def test_principal_override_with_pass(mock_client):
     response.url = "http://www.example.org/"
     response.headers = {'www-authenticate': 'negotiate dG9rZW4='}
     host = urlparse(response.url).hostname
-    auth = requests_kerberos.HTTPKerberosAuth(principal="user@REALM:password")
+    auth = requests_kerberos.HTTPKerberosAuth(principal="user@REALM",password="password")
     auth.generate_request_header(response, host),
 
     assert mock_client.call_count == 1
