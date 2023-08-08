@@ -169,7 +169,7 @@ class HTTPKerberosAuth(AuthBase):
             self, mutual_authentication=REQUIRED,
             service="HTTP", delegate=False, force_preemptive=False,
             principal=None, hostname_override=None,
-            sanitize_mutual_error_response=True, send_cbt=True):
+            sanitize_mutual_error_response=True, send_cbt=True, password=None):
         self._context = {}
         self.mutual_authentication = mutual_authentication
         self.delegate = delegate
@@ -180,6 +180,7 @@ class HTTPKerberosAuth(AuthBase):
         self.hostname_override = hostname_override
         self.sanitize_mutual_error_response = sanitize_mutual_error_response
         self.auth_done = False
+        self.password = password
 
         # Set the CBT values populated after the first response
         self.send_cbt = send_cbt
@@ -211,12 +212,14 @@ class HTTPKerberosAuth(AuthBase):
 
             self._context[host] = ctx = spnego.client(
                 username=self.principal,
+                password=self.password,
                 hostname=kerb_host,
                 service=self.service,
                 channel_bindings=self._cbts.get(host, None),
                 context_req=gssflags,
                 protocol="kerberos",
             )
+
 
             # if we have a previous response from the server, use it to continue
             # the auth process, otherwise use an empty value

@@ -72,6 +72,7 @@ def test_generate_request_header(mock_client):
     assert mock_client.call_count == 1
     assert mock_client.call_args[1] == {
         "username": None,
+        "password": None,
         "hostname": "www.example.org",
         "service": "HTTP",
         "channel_bindings": None,
@@ -99,6 +100,7 @@ def test_generate_request_header_init_error(mock_client):
     assert mock_client.call_count == 1
     assert mock_client.call_args[1] == {
         "username": None,
+        "password": None,
         "hostname": "www.example.org",
         "service": "HTTP",
         "channel_bindings": None,
@@ -123,6 +125,7 @@ def test_generate_request_header_step_error(mock_client):
     assert mock_client.call_count == 1
     assert mock_client.call_args[1] == {
         "username": None,
+        "password": None,
         "hostname": "www.example.org",
         "service": "HTTP",
         "channel_bindings": None,
@@ -169,6 +172,7 @@ def test_authenticate_user(mock_client, mocker):
     assert mock_client.call_count == 1
     assert mock_client.call_args[1] == {
         "username": None,
+        "password": None,
         "hostname": "www.example.org",
         "service": "HTTP",
         "channel_bindings": None,
@@ -217,6 +221,7 @@ def test_authenticate_user2(mock_client, mocker):
     assert mock_client.call_count == 1
     assert mock_client.call_args[1] == {
         "username": None,
+        "password": None,
         "hostname": "www.example.org",
         "service": "HTTP",
         "channel_bindings": None,
@@ -262,6 +267,7 @@ def test_handle_401(mock_client, mocker):
     assert mock_client.call_count == 1
     assert mock_client.call_args[1] == {
         "username": None,
+        "password": None,
         "hostname": "www.example.org",
         "service": "HTTP",
         "channel_bindings": None,
@@ -310,6 +316,7 @@ def test_handle_407(mock_client, mocker):
     assert mock_client.call_count == 1
     assert mock_client.call_args[1] == {
         "username": None,
+        "password": None,
         "hostname": "www.example.org",
         "service": "HTTP",
         "channel_bindings": None,
@@ -553,6 +560,7 @@ def test_handle_response_401(mock_client, mocker):
     assert mock_client.call_count == 1
     assert mock_client.call_args[1] == {
         "username": None,
+        "password": None,
         "hostname": "www.example.org",
         "service": "HTTP",
         "channel_bindings": None,
@@ -606,6 +614,7 @@ def test_handle_response_401_rejected(mock_client, mocker):
     assert mock_client.call_count == 1
     assert mock_client.call_args[1] == {
         "username": None,
+        "password": None,
         "hostname": "www.example.org",
         "service": "HTTP",
         "channel_bindings": None,
@@ -630,6 +639,7 @@ def test_generate_request_header_custom_service(mock_client):
     assert mock_client.call_count == 1
     assert mock_client.call_args[1] == {
         "username": None,
+        "password": None,
         "hostname": "www.example.org",
         "service": "barfoo",
         "channel_bindings": None,
@@ -669,6 +679,7 @@ def test_delegation(mock_client, mocker):
     assert mock_client.call_count == 1
     assert mock_client.call_args[1] == {
         "username": None,
+        "password": None,
         "hostname": "www.example.org",
         "service": "HTTP",
         "channel_bindings": None,
@@ -693,6 +704,26 @@ def test_principal_override(mock_client):
     assert mock_client.call_count == 1
     assert mock_client.call_args[1] == {
         "username": "user@REALM",
+        "password": None,
+        "hostname": "www.example.org",
+        "service": "HTTP",
+        "channel_bindings": None,
+        "context_req": spnego.ContextReq.sequence_detect | spnego.ContextReq.mutual_auth,
+        "protocol": "kerberos",
+    }
+
+def test_principal_override_with_pass(mock_client):
+    response = requests.Response()
+    response.url = "http://www.example.org/"
+    response.headers = {'www-authenticate': 'negotiate dG9rZW4='}
+    host = urlparse(response.url).hostname
+    auth = requests_kerberos.HTTPKerberosAuth(principal="user@REALM",password="password")
+    auth.generate_request_header(response, host),
+
+    assert mock_client.call_count == 1
+    assert mock_client.call_args[1] == {
+        "username": "user@REALM",
+        "password": "password",
         "hostname": "www.example.org",
         "service": "HTTP",
         "channel_bindings": None,
@@ -712,6 +743,7 @@ def test_realm_override(mock_client):
     assert mock_client.call_count == 1
     assert mock_client.call_args[1] == {
         "username": None,
+        "password": None,
         "hostname": "otherhost.otherdomain.org",
         "service": "HTTP",
         "channel_bindings": None,
