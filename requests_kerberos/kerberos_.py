@@ -1,6 +1,7 @@
 import base64
 import logging
 import re
+import socket
 import warnings
 
 import spnego
@@ -169,7 +170,8 @@ class HTTPKerberosAuth(AuthBase):
             self, mutual_authentication=REQUIRED,
             service="HTTP", delegate=False, force_preemptive=False,
             principal=None, hostname_override=None,
-            sanitize_mutual_error_response=True, send_cbt=True, password=None):
+            sanitize_mutual_error_response=True, send_cbt=True, password=None,
+            dns_canonicalize_hostname=False, use_reverse_dns=False):
         self._context = {}
         self.mutual_authentication = mutual_authentication
         self.delegate = delegate
@@ -181,6 +183,8 @@ class HTTPKerberosAuth(AuthBase):
         self.sanitize_mutual_error_response = sanitize_mutual_error_response
         self.auth_done = False
         self.password = password
+        self.dns_canonicalize_hostname = dns_canonicalize_hostname
+        self.use_reverse_dns = use_reverse_dns
 
         # Set the CBT values populated after the first response
         self.send_cbt = send_cbt
@@ -202,13 +206,27 @@ class HTTPKerberosAuth(AuthBase):
         if self.mutual_authentication != DISABLED:
             gssflags |= spnego.ContextReq.mutual_auth
 
+        canonhost = host
+        if self.dns_canonicalize_hostname:
+            try:
+                ai = socket.getaddrinfo(host, 0, flags=socket.AI_CANONNAME)
+                canonhost = ai[0][3]
+
+                if self.use_reverse_dns:
+                    ni = socket.getnameinfo(ai[0][4], socket.NI_NAMEREQD)
+                    canonhost = ni[0]
+
+            except socket.gaierror as e:
+                if e.errno == socket.EAI_MEMORY:
+                    raise e
+
         try:
             kerb_stage = "ctx init"
             # contexts still need to be stored by host, but hostname_override
             # allows use of an arbitrary hostname for the kerberos exchange
             # (eg, in cases of aliased hosts, internal vs external, CNAMEs
             # w/ name-based HTTP hosting)
-            kerb_host = self.hostname_override if self.hostname_override is not None else host
+            kerb_host = self.hostname_override if self.hostname_override is not None else canonhost
 
             self._context[host] = ctx = spnego.client(
                 username=self.principal,
