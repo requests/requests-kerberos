@@ -427,7 +427,7 @@ class HTTPKerberosAuth(AuthBase):
         response.request.deregister_hook('response', self.handle_response)
 
     def __call__(self, request):
-        if self.force_preemptive and not self.auth_done:
+        if self.force_preemptive:
             # add Authorization header before we receive a 401
             # by the 401 handler
             host = urlparse(request.url).hostname
