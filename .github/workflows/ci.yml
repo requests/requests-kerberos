@@ -29,10 +29,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-        - python-version: '3.6'
-          image: python:3.6-slim
-        - python-version: '3.7'
-          image: python:3.7-slim
         - python-version: '3.8'
           image: python:3.8-slim
         - python-version: '3.9'
@@ -72,14 +68,13 @@ jobs:
 
     - name: Set up Python
       uses: actions/setup-python@v5
-
-    - name: Installing baseline packages
-      run: |
-        echo "Installing baseline pip packages"
-        python -m pip install --upgrade pip setuptools wheel
+      with:
+        python-version: '3.12'
 
     - name: Build package
-      run: python setup.py sdist bdist_wheel
+      run: |
+        python -m pip install build
+        python -m build
 
     - name: Capture Wheel and SDist
       uses: actions/upload-artifact@v4

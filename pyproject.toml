@@ -1,0 +1,39 @@
+[build-system]
+requires = [
+    "setuptools >= 61.0.0", # Support for setuptools config in pyproject.toml
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "requests-kerberos"
+description = "A Kerberos authentication handler for python-requests"
+requires-python = ">=3.8"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Ian Cordasco", email = "graffatcolmingov@gmail.com" },
+    { name = "Cory Benfield" },
+    { name = "Michael Komitee'" }
+]
+classifiers = [
+    "License :: OSI Approved :: ISC License (ISCL)"
+]
+dependencies = [
+    "requests >= 1.1.0",
+    "cryptography >= 1.3",
+    "pyspnego[kerberos]"
+]
+dynamic = ["version", "readme"]
+
+[project.urls]
+homepage = "https://github.com/requests/requests-kerberos"
+
+[tool.setuptools]
+include-package-data = true
+packages = ["requests_kerberos"]
+
+[tool.setuptools.package-data]
+"*" = ["LICENSE", "AUTHORS"]
+
+[tool.setuptools.dynamic]
+version = { attr = "requests_kerberos.__version__" }
+readme = { file = ["README.rst", "HISTORY.rst"], content-type = "text/x-rst" }
