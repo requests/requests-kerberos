@@ -1,6 +1,12 @@
 History
 =======
 
+0.15.0: 2024-06-04
+------------------
+
+- Make Channel Binding data per-host
+- Added support for explicit passwords using the ``password`` kwarg
+
 0.14.0: 2021-12-05
 ------------------
 
