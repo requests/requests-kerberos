@@ -1,6 +1,12 @@
 History
 =======
 
+0.16.0: TBD
+-----------
+
+- Raised minimum Python version to 3.8
+- Changed project build metadata to use PEP 518 pyproject.toml
+
 0.15.0: 2024-06-04
 ------------------
 

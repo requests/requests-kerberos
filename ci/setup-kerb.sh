@@ -150,7 +150,6 @@ else
 fi
 
 echo "Updating pip and installing library"
-pip$PY_MAJOR install -U pip setuptools
 pip$PY_MAJOR install .
 pip$PY_MAJOR install -r requirements-test.txt
 
