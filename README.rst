@@ -21,15 +21,32 @@ The entire ``requests.api`` should be supported.
 Setup
 -----
 
-In order to use this library, there must already be a Kerberos Ticket-Granting
-Ticket(TGT) cached in a Kerberos credential cache. Whether a TGT is available
-can be easily determined by running the ``klist`` command. If no TGT is
-available, then it first must be obtained by running the ``kinit`` command, or
-pointing the $KRB5CCNAME to a credential cache with a valid TGT.
+Before installing this module, the underlying Kerberos C libraries and Python
+development headers need to be installed. An example of how to do this for
+some Linux distributions is shown below:
 
-In short, the library will handle the "negotiations" of Kerberos authentication,
-but ensuring that an initial TGT is available and valid is the responsibility
-of the user.
+.. code-block:: bash
+
+    # For Debian based distros
+    apt-get install gcc python3-dev libkrb5-dev
+
+    # For EL based distros
+    dnf install gcc python3-devel krb5-devel
+
+The names of the packages may vary across the distribution so use this as a
+general guide. MacOS and Windows users should not need these development
+libraries as the underlying Kerberos Python module for those platforms are
+provided as a wheel and the C library is already preinstalled.
+
+While it is possible to use Kerberos authentication with an explicit
+``principal`` and ``password`` as an arg to ``HTTPKerberosAuth``, it is
+recommended to use an existing credential cache to store the credentials
+instead. The credential cache can store a Kerberos Ticket-Granting Ticket
+(``TGT``) which is then used for authentication when no ``password`` is given
+to ``HTTPKerberosAuth``. The credential cache can store a ``TGT`` by using the
+``kinit`` command and ``klist`` can be used to view the contents of the cache.
+The environment variable ``KRB5CCNAME`` can be used to specify the location of
+a custom credential cache.
 
 Authentication Failures
 -----------------------
@@ -137,9 +154,8 @@ Explicit Principal
 whom you last ran ``kinit`` or ``kswitch``, or an SSO credential if
 applicable). However, an explicit principal can be specified, which will
 cause Kerberos to look for a matching credential cache for the named user.
-This feature depends on OS support for collection-type credential caches,
-as well as working principal support in PyKerberos (it is broken in many
-builds). An explicit principal can be specified with the ``principal`` arg:
+This feature depends on OS support for collection-type credential caches.
+An explicit principal can be specified with the ``principal`` arg:
 
 .. code-block:: python
 
@@ -149,9 +165,27 @@ builds). An explicit principal can be specified with the ``principal`` arg:
     >>> r = requests.get("http://example.org", auth=kerberos_auth)
     ...
 
-On Windows, WinKerberos is used instead of PyKerberos. WinKerberos allows the
-use of arbitrary principals instead of a credential cache. Passwords can be
-specified by following the form ``user@realm:password`` for ``principal``.
+Password Authentication
+-----------------------
+
+``HTTPKerberosAuth`` can be used with an explicit principal and password
+instead of using a credential stored in the credential cache. An explicit
+username and password can be specified with the ``principal`` and ``password``
+arg respectively:
+
+.. code-block:: python
+
+    >>> import requests
+    >>> from requests_kerberos import HTTPKerberosAuth, REQUIRED
+    >>> kerberos_auth = HTTPKerberosAuth(
+    ...     principal="user@REALM",
+    ...     password="SecretPassword",
+    ...)
+    >>> r = requests.get("http://example.org", auth=kerberos_auth)
+
+When specifing a custom principal and password, the underlying Kerberos
+library will request a TGT from the KDC before using that TGT to retrieve the
+service ticket for authentication.
 
 Delegation
 ----------
