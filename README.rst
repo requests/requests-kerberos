@@ -204,6 +204,25 @@ To enable delegation of credentials to a server that requests delegation, pass
 Be careful to only allow delegation to servers you trust as they will be able
 to impersonate you using the delegated credentials.
 
+Hostname canonicalization
+-------------------------
+
+When one or more services run on a single host and CNAME records are employed
+to point at the host's A or AAAA records, and there is an SPN only for the canonical
+name of the host, different hostname needs to be used for an HTTP request
+and differnt for authentication. To enable canonical name resolution pass
+``dns_canonicalize_hostname=True`` to ``HTTPSPNEGOAuth``. Optionally,
+if ``use_reverse_dns=True`` is passed, an additional reverse DNS lookup
+will be used to obtain the canonical name.
+
+.. code-block:: python
+
+    >>> import requests
+    >>> from requests_kerberos import HTTPKerberosAuth
+    >>> kerberos_auth = HTTPKerberosAuth(dns_canonicalize_hostname=True, use_reverse_dns=True)
+    >>> r = requests.get("http://example.org", auth=kerberos_auth)
+    ...
+
 Logging
 -------
 
